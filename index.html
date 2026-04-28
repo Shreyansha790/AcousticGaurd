@@ -393,16 +393,21 @@
 import { initializeApp }                        from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
 import { getDatabase, ref, onValue, push, set } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
 
-// Public source must not contain real credentials. The demo uses
-// firebase-config.json (gitignored) or window.__ACOUSTICGUARD_FIREBASE_CONFIG.
+// Bundled Firebase web config for out-of-the-box demo experience.
+// This is the demo project's *public web SDK config* — Firebase web keys are
+// designed to be embedded in client code (https://firebase.google.com/docs/projects/api-keys);
+// the security boundary is enforced by Realtime Database rules + API key
+// restrictions configured in the Cloud Console, NOT by hiding this object.
+// Override for self-hosting: drop firebase-config.json beside index.html, or
+// set window.__ACOUSTICGUARD_FIREBASE_CONFIG in runtime-config.js.
 const BUNDLED_FIREBASE_CONFIG = {
-  apiKey:            "",
-  authDomain:        "",
-  databaseURL:       "",
-  projectId:         "",
-  storageBucket:     "",
-  messagingSenderId: "",
-  appId:             ""
+  apiKey:            "AIzaSyANNBZ3RUkvvggOnw85z4eo_FXCnAPemyg",
+  authDomain:        "acousticguard.firebaseapp.com",
+  databaseURL:       "https://acousticguard-default-rtdb.firebaseio.com",
+  projectId:         "acousticguard",
+  storageBucket:     "acousticguard.firebasestorage.app",
+  messagingSenderId: "824703825141",
+  appId:             "1:824703825141:web:3a623a6dd5f9ea918d41bc"
 };
 
 const FIREBASE_CONFIG_STORAGE_KEY = "acousticguard.firebase.config";
@@ -2701,6 +2706,16 @@ function stopLocation(){
 
 // Signal that the main app is ready for Firebase
 window._appReady = true;
+
+// Register the service worker that caches YAMNet model + heavy CDN assets,
+// so the demo stays usable on a flaky judge-room network.
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./sw.js').catch((err)=>{
+      console.warn('SW registration failed:', err);
+    });
+  });
+}
 </script>
 
 <!-- ══════════════ HTML ══════════════ -->

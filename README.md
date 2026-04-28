@@ -95,52 +95,84 @@ Hospitality venues face fast-moving incidents where information is often fragmen
 
 ## Runtime Configuration
 
-You can provide live infra credentials in three ways:
+### Firebase
 
-1. `runtime-config.js` (recommended for local demo)
-2. `firebase-config.json` (optional file; use `firebase-config.example.json` as template)
-3. Browser `localStorage` / query param (`?tomtomKey=...`) for quick testing
+The repo ships with a working Firebase web SDK config bundled directly in `index.html`. This is the demo project's *public* web key — Firebase web keys are designed to be embedded in client code; the security boundary is enforced by Realtime Database rules + API-key restrictions in the Cloud Console, not by hiding the object. Anyone cloning the repo gets multi-device sync working out of the box.
 
-By default:
-- Firebase attempts live init and falls back to local mode if unavailable
-- TomTom runs fallback traffic mode if no key is provided
+To point at your own Firebase project instead, override in any of these ways (highest priority first):
 
-## Edge Backend Emulator (Phase 2 Readiness)
+1. `window.__ACOUSTICGUARD_FIREBASE_CONFIG = { ... }` in `runtime-config.js`.
+2. Drop a `firebase-config.json` next to `index.html` (gitignored).
+3. Set the bundled config in `index.html`.
 
-To demonstrate non-browser telemetry ingestion:
+### TomTom (live traffic + routing geometry)
+
+The app falls back to a deterministic synthetic traffic model if no key is provided, so the UI is always populated. To switch to live TomTom data, choose one:
+
+1. `window.__ACOUSTICGUARD_TOMTOM_KEY = "YOUR_KEY"` in `runtime-config.js` (recommended for local demo).
+2. Append `?tomtomKey=YOUR_KEY` to the URL once — it's persisted in `localStorage` from then on.
+3. `localStorage.setItem('acousticguard.tomtom.key', 'YOUR_KEY')` in DevTools.
+
+Get a free key at https://developer.tomtom.com (Routing API + Traffic Flow API).
+
+The top-bar `Live Traffic:` badge tells you which mode the UI is in: `TomTom` (live) or `Fallback` (synthetic).
+
+## Edge Backend (Cloud Run-deployable)
+
+The `edge_node/` folder is the deployable backend half of AcousticGuard — a 12-node simulated edge fleet that publishes heartbeats + detections into the same Firebase paths the dashboard reads. Three run modes:
 
 ```bash
+# 1. Local laptop demo
 pip install -r edge_node/requirements.txt
-python edge_node/edge_sensor_bridge.py --service-account "C:/path/to/service-account.json" --database-url "https://your-project-default-rtdb.firebaseio.com"
+python edge_node/edge_sensor_bridge.py \
+  --service-account "C:/path/to/service-account.json" \
+  --database-url "https://acousticguard-default-rtdb.firebaseio.com"
+
+# 2. Offline / dry-run (no Firebase, prints JSON to stdout)
+python edge_node/edge_sensor_bridge.py --dry-run
+
+# 3. Cloud Run job (Dockerfile in edge_node/)
+gcloud builds submit edge_node --tag gcr.io/$PROJECT_ID/acousticguard-edge
+gcloud run jobs deploy acousticguard-edge \
+  --image gcr.io/$PROJECT_ID/acousticguard-edge \
+  --set-env-vars FIREBASE_DATABASE_URL=https://acousticguard-default-rtdb.firebaseio.com \
+  --service-account=acousticguard-edge@$PROJECT_ID.iam.gserviceaccount.com \
+  --region=asia-south1
 ```
 
-This publishes edge heartbeats + detection events to Firebase so judges can see a realistic backend/edge integration path.
+Replacing the emulator with real Raspberry Pi devices is a one-day swap: same JSON shape, same Firebase paths, dashboard untouched. See [edge_node/README.md](./edge_node/README.md).
 
 ## Running Locally
-
-Use a local server:
 
 ```bash
 python -m http.server 5500
 ```
 
-Then open:
+Then open `http://127.0.0.1:5500/index.html`.
 
-`http://127.0.0.1:5500/index.html`
+A service worker (`sw.js`) caches the YAMNet model, TF.js, Leaflet, Chart.js, and basemap tiles after the first successful load — the demo stays usable on a flaky judge-room network.
 
 ## Demo Flow
 
 1. Select `Hotel` in Venue Mode.
-2. Run `Medical Crisis`.
-3. Show guest safety, staff tasks, responder gate, and crisis timeline.
-4. Trigger `Conflict` to demonstrate multi-ambulance responder arbitration.
-5. Use `Replay` for deterministic rerun.
-6. Enable `LIVE MIC` and show the YAMNet siren/noise classifier if microphone access is available.
-7. Switch to `Hospitality Crisis Analytics` and generate the crisis report.
+2. Run `Medical Crisis` — show guest safety, staff tasks, responder gate, crisis timeline, ambulance route on map.
+3. Trigger `Conflict` to demonstrate multi-ambulance arbitration.
+4. Use `Replay` for deterministic rerun (judge-friendly).
+5. Enable `LIVE MIC` and play a siren / talk into the mic to show the YAMNet decision tree.
+6. Switch to `Hospitality Crisis Analytics` → `Generate Crisis Report` → `Export PDF`.
+
+## Resilience
+
+| Component       | Live mode                              | Fallback path                                                  |
+|-----------------|----------------------------------------|----------------------------------------------------------------|
+| Firebase RTDB   | Bundled web config (works out of box)  | In-memory store, "LOCAL MODE" badge in topbar                  |
+| YAMNet model    | TF.js + TFHub model, prefetched, SW-cached | Heuristic RMS/ZCR/spike classifier, `AI Engine: Fallback` badge |
+| TomTom traffic  | Flow Segment + Routing API             | Deterministic per-node synthetic multipliers, `Fallback` badge |
+| Mic permission  | `getUserMedia` siren/noise inference   | Manual `🚨 Siren` / `🚗 Traffic` simulation buttons             |
+| Edge ingestion  | Cloud Run / local Python bridge        | Dashboard scenario buttons emit synthetic events               |
 
 ## Important Notes
 
 - This is a hackathon prototype, not a certified emergency-service or medical device.
-- Do not commit real API keys/service-account secrets to public repos.
-- If Firebase or TomTom is unavailable, the app stays usable through local/demo fallback paths.
-- If YAMNet model fetch fails (network/CDN), the mic pipeline continues using fallback inference mode.
+- The bundled Firebase web key is intentional and locked down via DB rules; rotate + re-restrict for production deployments.
+- Real audio is not persisted — only inference labels and confidence are stored.
