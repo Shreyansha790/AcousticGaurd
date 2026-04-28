@@ -1,0 +1,9 @@
+# Runtime secrets / local-only configs
+config.js
+.env
+.env.*
+*.service-account.json
+firebase-admin*.json
+
+# Optional local artifacts
+chat_chunks/
