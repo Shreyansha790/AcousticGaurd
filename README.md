@@ -1,19 +1,31 @@
 # AcousticGuard.ai
 
-AcousticGuard.ai is a smart emergency-response prototype built for the Google Solution Challenge context. It detects ambulance siren signals from live audio, validates them using AI classification, and orchestrates traffic signal corridors to reduce urban ambulance delays.
+AcousticGuard.ai is a hospitality crisis-response command dashboard for hotels, malls, stadiums, resorts, and large venues. It detects emergency signals, coordinates venue staff, routes responders with live traffic context, and generates a crisis report for rapid emergency response.
 
-The current prototype is focused on Bengaluru-like traffic conditions and demonstrates both single-ambulance and multi-ambulance conflict scenarios with live map visualization, hospital-aware routing, and real-time analytics.
+The prototype is built for the Google Solution Challenge rapid crisis response theme. It connects distressed guests, venue staff, on-site security, medical teams, hospitals, and ambulance responders in one operational dashboard.
 
-## Why This Project
+## How It Fits The Challenge
 
-Urban emergency vehicles lose critical minutes in congestion. AcousticGuard.ai addresses this by combining:
+Hospitality venues face fast-moving incidents where information is often fragmented between guests, front desk, security, floor managers, and emergency services. AcousticGuard.ai addresses this by:
 
-- Real-time audio intelligence
-- Intersection-level routing orchestration
-- Explainable multi-ambulance arbitration
-- Data-driven urban planning insights
+- Detecting or triggering crisis events in a live command view
+- Synchronizing staff tasks across front desk, security, medical, and floor teams
+- Showing guest-safe zones, affected zones, and responder entry gates
+- Routing ambulances/hospitals with TomTom traffic-aware ETA logic
+- Preserving a crisis timeline and post-incident report for accountability
 
 ## Core Features
+
+- `Venue Crisis Mode`:
+  - Hotel, mall, stadium, and resort profiles
+  - Medical, fire, security, and evacuation scenario presets
+  - Affected zone, safe zone, and responder gate tracking
+
+- `Hospitality Command Panel`:
+  - Guest safety progress
+  - Staff task dispatch board
+  - Responder bridge with TomTom/fallback traffic source
+  - Crisis timeline for judge-visible explainability
 
 - `Real AI Audio Detection`:
   - Live mic capture in browser
@@ -21,53 +33,45 @@ Urban emergency vehicles lose critical minutes in congestion. AcousticGuard.ai a
   - Siren/noise confidence scoring with decision trace
 
 - `Emergency Corridor Activation`:
-  - Automatic route activation on high-confidence siren events
+  - Automatic route activation on high-confidence siren or medical-crisis events
   - Animated corridor rendering on Leaflet map
   - Signal node sequencing visualization
 
 - `Multi-Ambulance Arbitration`:
-  - Conflict-first demo flow
+  - Conflict-first responder demo flow
   - Priority scoring based on urgency, ETA window, overlap risk, and traffic density
   - Winner and rerouted path logic
-  - Explainable reasoning and ETA delta display
   - Deterministic replay mode for judging/demo consistency
 
 - `Live Traffic Integration (TomTom)`:
   - Real-time traffic flow sampling from TomTom Flow Segment API
-  - Traffic multipliers applied to ETA + conflict arbitration
+  - Traffic multipliers applied to ETA and conflict arbitration
   - Dynamic congestion visualization in route rendering and node table
   - Safe synthetic fallback when live traffic API is unavailable
 
-- `Hospital-Aware Routing`:
-  - Nearest hospital ranking
-  - Bed-availability-aware selection panel
-  - User location + nearest hospital path support
-
-- `City Analytics & Report`:
+- `Hospitality Crisis Analytics & Report`:
   - Detection volume charts
   - Confidence distribution
-  - Hotspot visibility
-  - Session-level impact report modal
+  - Response time saved
+  - Staff tasks, guest-safe-zone progress, responder gate, and crisis narrative
 
 ## Tech Stack
 
 - `Frontend`: HTML, CSS, JavaScript (single-page architecture)
 - `AI`: TensorFlow.js, YAMNet
 - `Map`: Leaflet.js + dark basemap
+- `Traffic`: TomTom Flow Segment API with fallback simulation
 - `Charts`: Chart.js
-- `Backend/Data`: Firebase Realtime Database
+- `Backend/Data`: Firebase Realtime Database with local in-memory fallback
 
 ## Project Structure
 
-- `index.html`: Single source of truth for the full prototype app (UI + logic + inference + routing)
+- `index.html`: Single source of truth for the full prototype app
 - `.gitignore`: Local artifact exclusions
-
-Legacy note:
-- Older draft file `acousticguard_live(4).html` has been removed to avoid demo confusion.
 
 ## Running Locally
 
-Use a local server (recommended, not direct file open):
+Use a local server:
 
 ```bash
 python -m http.server 5500
@@ -77,23 +81,18 @@ Then open:
 
 `http://127.0.0.1:5500/index.html`
 
-## Demo Flow (Recommended)
+## Demo Flow
 
-1. Enable `LIVE MIC`
-2. Trigger `Conflict` to showcase multi-ambulance arbitration first
-3. Use `Replay` for deterministic rerun
-4. Trigger `Siren` and `Traffic` for single-event behavior
-5. Switch to `City Analytics` and open report modal
+1. Select `Hotel` in Venue Mode.
+2. Run `Medical Crisis`.
+3. Show guest safety, staff tasks, responder gate, and crisis timeline.
+4. Trigger `Conflict` to demonstrate multi-ambulance responder arbitration.
+5. Use `Replay` for deterministic rerun.
+6. Enable `LIVE MIC` and show the YAMNet siren/noise classifier if microphone access is available.
+7. Switch to `Hospitality Crisis Analytics` and generate the crisis report.
 
-## Impact Narrative
+## Important Notes
 
-AcousticGuard.ai is designed as an emergency mobility orchestrator, not only a siren detector. It combines detection, explainable routing arbitration, and city-level impact telemetry to support faster response times and better emergency outcomes.
-
-## Next Build Targets
-
-- Stronger mobile responsiveness
-- Hardening Firebase access rules and privacy posture
-- Historical conflict history table for audits
-- Edge-node telemetry beyond route probes
-- Production split into modular JS files + deployment pipeline
-
+- This is a hackathon prototype, not a certified emergency-service or medical device.
+- The exposed TomTom key should be rotated after demos/submission.
+- If Firebase or TomTom is unavailable, the app stays usable through local/demo fallback paths.

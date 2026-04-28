@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>AcousticGuard — AI Emergency Routing</title>
+<title>AcousticGuard - Hospitality Crisis Command</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -63,7 +63,7 @@
   .mic-btn.active .mic-dot { animation:pulse-dot 1s infinite; }
 
   /* ── LAYOUT ── */
-  .view-container { height:calc(100vh - 60px); display:none; overflow:hidden; }
+  .view-container { height:calc(100vh - 176px); display:none; overflow:hidden; }
   .view-container.active { display:grid; }
   .layout-live      { grid-template-columns:300px 1fr 320px; grid-template-rows:auto 1fr; gap:14px; padding:14px; }
   .layout-analytics { grid-template-columns:1fr; padding:28px; overflow-y:auto; }
@@ -329,22 +329,53 @@
   .loc-nearest{ font-size:10px; color:var(--neon-amber); margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.06); line-height:1.8; }
 
   .theme-badge { font-size:9px; font-weight:700; color:var(--neon-cyan); border:1px solid rgba(0,240,255,0.25); background:rgba(0,240,255,0.08); padding:4px 8px; border-radius:999px; letter-spacing:0.7px; text-transform:uppercase; }
-  .proof-strip { margin-top:14px; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .proof-strip { margin:14px 14px 0; display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
   .proof-card { background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); border-radius:10px; padding:10px; }
   .proof-title { font-size:9px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:5px; }
   .proof-text { font-size:10px; line-height:1.6; color:var(--text-main); }
 
   .info-btn { border:1px solid rgba(0,240,255,0.25); background:rgba(0,240,255,0.08); color:var(--neon-cyan); border-radius:8px; font-size:10px; font-weight:700; padding:7px 10px; cursor:pointer; letter-spacing:0.5px; }
   .info-btn:hover { background:rgba(0,240,255,0.16); }
+  .traffic-badge { border:1px solid rgba(0,255,136,0.24); background:rgba(0,255,136,0.08); color:var(--neon-green); border-radius:999px; font-size:9px; font-weight:700; padding:5px 9px; letter-spacing:0.7px; text-transform:uppercase; white-space:nowrap; }
+  .traffic-badge.fallback { border-color:rgba(255,204,0,0.28); background:rgba(255,204,0,0.08); color:var(--neon-amber); }
+  .venue-bar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:10px 14px 0; padding:10px 12px; border:1px solid var(--glass-border); background:rgba(11,17,32,0.72); border-radius:12px; }
+  .venue-left { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .venue-label { font-size:9px; font-weight:700; color:var(--text-muted); letter-spacing:1px; text-transform:uppercase; }
+  .venue-select { background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:var(--text-main); border-radius:8px; padding:7px 9px; font-size:11px; font-family:var(--sans); outline:none; }
+  .crisis-actions { display:flex; gap:7px; flex-wrap:wrap; justify-content:flex-end; }
+  .crisis-btn { padding:7px 9px; border-radius:8px; border:1px solid rgba(0,240,255,0.18); background:rgba(0,240,255,0.06); color:var(--text-main); font-size:10px; font-weight:700; cursor:pointer; font-family:var(--sans); }
+  .crisis-btn.medical { border-color:rgba(255,51,102,0.32); color:var(--neon-red); background:rgba(255,51,102,0.08); }
+  .crisis-btn.fire { border-color:rgba(255,204,0,0.32); color:var(--neon-amber); background:rgba(255,204,0,0.08); }
+  .crisis-btn.security { border-color:rgba(0,240,255,0.28); color:var(--neon-cyan); }
+  .crisis-btn.evac { border-color:rgba(0,255,136,0.28); color:var(--neon-green); background:rgba(0,255,136,0.06); }
+  .command-panel { background:rgba(0,0,0,0.22); border:1px solid var(--glass-border); border-radius:10px; padding:12px; }
+  .command-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .command-title { font-size:9px; font-weight:700; color:var(--neon-cyan); letter-spacing:1.4px; text-transform:uppercase; }
+  .command-pill { font-size:8px; font-weight:700; color:var(--neon-amber); border:1px solid rgba(255,204,0,0.24); background:rgba(255,204,0,0.08); padding:2px 7px; border-radius:999px; text-transform:uppercase; }
+  .command-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+  .command-card { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:8px; padding:8px; min-height:64px; }
+  .command-k { font-size:8px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:5px; }
+  .command-v { font-size:11px; color:var(--text-main); line-height:1.45; }
+  .staff-list, .timeline-list { display:flex; flex-direction:column; gap:6px; }
+  .staff-row, .timeline-row { display:flex; gap:8px; align-items:flex-start; font-size:10px; color:var(--text-main); line-height:1.45; }
+  .staff-role { color:var(--neon-green); font-family:var(--mono); min-width:70px; }
+  .timeline-time { color:var(--neon-cyan); font-family:var(--mono); min-width:44px; }
+  .venue-marker { background:rgba(255,51,102,0.9); color:#fff; border-radius:8px; padding:4px 6px; font-size:12px; box-shadow:0 0 14px rgba(255,51,102,0.7); border:1px solid rgba(255,255,255,0.35); }
+  .safe-marker { background:rgba(0,255,136,0.92); color:#04120b; border-radius:8px; padding:4px 6px; font-size:12px; box-shadow:0 0 14px rgba(0,255,136,0.65); border:1px solid rgba(255,255,255,0.35); }
+  .gate-marker { background:rgba(0,240,255,0.92); color:#061018; border-radius:8px; padding:4px 6px; font-size:12px; box-shadow:0 0 14px rgba(0,240,255,0.65); border:1px solid rgba(255,255,255,0.35); }
 
   @media (max-width: 1100px){
     html, body { overflow:auto; }
+    .view-container { height:auto; min-height:0; }
     .layout-live { grid-template-columns:1fr; grid-template-rows:auto auto auto auto; }
     .map-area { min-height:340px; }
     .topbar { flex-wrap:wrap; height:auto; padding:10px 14px; gap:10px; }
     .topbar-right { width:100%; justify-content:space-between; }
     .nav-tabs { order:3; width:100%; justify-content:center; }
     .proof-strip { grid-template-columns:1fr; }
+    .venue-bar { flex-direction:column; align-items:stretch; }
+    .crisis-actions { justify-content:flex-start; }
+    .command-grid { grid-template-columns:1fr; }
   }
 </style>
 </head>
@@ -452,6 +483,99 @@ const TOMTOM_API_KEY = window.__ACOUSTICGUARD_TOMTOM_KEY || 'b7HCHyABv9QuAUtV8HU
 let liveTrafficByNode = {};
 let lastTrafficSyncAt = 0;
 const TRAFFIC_SYNC_MS = 120000;
+const VENUES = {
+  hotel: {
+    label:'Hotel',
+    name:'Orion Grand Hotel',
+    lat:12.9716, lng:77.5946,
+    zones:['Lobby','Banquet Hall','Guest Tower','Kitchen','Parking Gate'],
+    safeZone:'North Assembly Lawn',
+    responderGate:'Service Gate B'
+  },
+  mall: {
+    label:'Mall',
+    name:'Nexus City Mall',
+    lat:12.9759, lng:77.6050,
+    zones:['Atrium','Food Court','Cinema Wing','Basement Parking','Loading Bay'],
+    safeZone:'East Plaza',
+    responderGate:'Loading Gate 3'
+  },
+  stadium: {
+    label:'Stadium',
+    name:'Bengaluru Arena',
+    lat:12.9780, lng:77.5995,
+    zones:['South Stand','VIP Entry','Concourse A','Medical Room','Gate 5'],
+    safeZone:'Practice Field',
+    responderGate:'Gate 5'
+  },
+  resort: {
+    label:'Resort',
+    name:'Lakeview Resort',
+    lat:12.9488, lng:77.5860,
+    zones:['Reception','Pool Deck','Villa Block','Banquet Lawn','Service Road'],
+    safeZone:'Main Lawn',
+    responderGate:'Back Service Road'
+  }
+};
+const CRISIS_PRESETS = {
+  medical: {
+    label:'Medical Emergency',
+    severity:'Cardiac Response',
+    zone:'Banquet Hall',
+    risk:'Guest collapse detected during event service',
+    confidence:0.96,
+    tasks:[
+      ['Front Desk','Call venue medic and prepare guest manifest'],
+      ['Security','Clear Service Gate B for ambulance entry'],
+      ['Medical','Start AED response and vitals check'],
+      ['Floor Manager','Move guests to North Assembly Lawn']
+    ]
+  },
+  fire: {
+    label:'Fire Alarm',
+    severity:'High',
+    zone:'Kitchen',
+    risk:'Heat/smoke alarm escalation with guest-facing evacuation risk',
+    confidence:0.91,
+    tasks:[
+      ['Security','Open emergency exits and isolate kitchen corridor'],
+      ['Floor Manager','Guide guests toward North Assembly Lawn'],
+      ['Engineering','Cut gas line and inspect panel'],
+      ['Front Desk','Notify fire service with zone details']
+    ]
+  },
+  security: {
+    label:'Security Incident',
+    severity:'Elevated',
+    zone:'Lobby',
+    risk:'Crowd distress reported near check-in and main entrance',
+    confidence:0.88,
+    tasks:[
+      ['Security','Deploy two guards to lobby perimeter'],
+      ['Front Desk','Pause check-in and protect guest records'],
+      ['Floor Manager','Redirect guests through west corridor'],
+      ['Medical','Stand by near lobby triage point']
+    ]
+  },
+  evacuation: {
+    label:'Evacuation',
+    severity:'Coordinated',
+    zone:'Guest Tower',
+    risk:'Vertical evacuation required while responder gate remains clear',
+    confidence:0.93,
+    tasks:[
+      ['Floor Manager','Sweep guest tower floors 1-5'],
+      ['Security','Hold elevator bank and clear stairwell path'],
+      ['Front Desk','Account for guests at safe zone'],
+      ['Medical','Set triage desk at North Assembly Lawn']
+    ]
+  }
+};
+let activeVenueKey = 'hotel';
+let activeCrisis = null;
+let staffTasks = [];
+let crisisTimeline = [];
+let venueMapLayers = [];
 
 function wait(ms){ return new Promise((resolve)=>setTimeout(resolve, ms)); }
 function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
@@ -516,6 +640,7 @@ async function refreshLiveTraffic(){
     }
   }));
   liveTrafficByNode = next;
+  renderTrafficSourceBadge();
 }
 function getTrafficColor(mult){
   if(mult >= 1.55) return '#FF3366';
@@ -532,6 +657,116 @@ function calculateRouteETA(route, hospital, trafficMultiplier){
   const dist = routeDistanceKm(route, hospital);
   const baseMinutesPerKm = 3.2;
   return (dist * baseMinutesPerKm * trafficMultiplier) + 2.5;
+}
+
+function getVenue(){
+  return VENUES[activeVenueKey] || VENUES.hotel;
+}
+function getTrafficSourceLabel(){
+  return Object.keys(liveTrafficByNode).length ? 'TomTom Live' : 'Fallback';
+}
+function renderTrafficSourceBadge(){
+  const el = document.getElementById('traffic-source-badge');
+  if(!el) return;
+  const live = Object.keys(liveTrafficByNode).length > 0;
+  el.className = live ? 'traffic-badge' : 'traffic-badge fallback';
+  el.textContent = live ? 'Live Traffic: TomTom' : 'Live Traffic: Fallback';
+}
+function timelineStamp(){
+  return new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false});
+}
+function pushTimeline(text){
+  crisisTimeline.unshift({ time: timelineStamp(), text });
+  crisisTimeline = crisisTimeline.slice(0,6);
+}
+function changeVenueMode(value){
+  activeVenueKey = value;
+  if(activeCrisis){
+    const venue = getVenue();
+    activeCrisis.venue = venue.name;
+    activeCrisis.safeZone = venue.safeZone;
+    activeCrisis.responderGate = venue.responderGate;
+    pushTimeline(`Venue switched to ${venue.name}`);
+    renderVenueCrisisMarkers();
+  }
+  renderHospitalityCommand();
+}
+function buildCrisisState(type){
+  const venue = getVenue();
+  const preset = CRISIS_PRESETS[type] || CRISIS_PRESETS.medical;
+  const zone = venue.zones.includes(preset.zone) ? preset.zone : venue.zones[0];
+  return {
+    type,
+    label:preset.label,
+    severity:preset.severity,
+    confidence:preset.confidence,
+    venue:venue.name,
+    venueType:venue.label,
+    affectedZone:zone,
+    safeZone:venue.safeZone,
+    responderGate:venue.responderGate,
+    status:type === 'medical' ? 'Responder routing' : 'Staff coordination',
+    risk:preset.risk,
+    startedAt:new Date().toISOString(),
+    guestsCleared:type === 'medical' ? 72 : type === 'fire' ? 48 : type === 'security' ? 61 : 84,
+    dispatchSec:type === 'medical' ? 42 : type === 'fire' ? 35 : type === 'security' ? 28 : 51
+  };
+}
+function renderHospitalityCommand(){
+  const venue = getVenue();
+  const select = document.getElementById('venue-select');
+  if(select && select.value !== activeVenueKey) select.value = activeVenueKey;
+  const venueName = document.getElementById('venue-name');
+  if(venueName) venueName.textContent = `${venue.name} - ${venue.label} Mode`;
+
+  const c = activeCrisis || {
+    label:'Standby',
+    severity:'Ready',
+    affectedZone:'No active crisis',
+    safeZone:venue.safeZone,
+    responderGate:venue.responderGate,
+    status:'Monitoring',
+    guestsCleared:0,
+    dispatchSec:0
+  };
+  const setText = (id, text)=>{ const el = document.getElementById(id); if(el) el.textContent = text; };
+  setText('command-status', c.status);
+  setText('guest-safety', `${c.affectedZone} -> ${c.safeZone}`);
+  setText('guest-progress', activeCrisis ? `${c.guestsCleared}% guests accounted` : 'No evacuation active');
+  setText('responder-bridge', `${c.responderGate} / ${getTrafficSourceLabel()}`);
+  setText('crisis-type-display', `${c.label} (${c.severity})`);
+  setText('staff-complete', activeCrisis ? `${staffTasks.filter(t=>t.status==='assigned').length}/${staffTasks.length} tasks assigned` : '0/0 tasks assigned');
+
+  const staffEl = document.getElementById('staff-task-list');
+  if(staffEl){
+    staffEl.innerHTML = staffTasks.length
+      ? staffTasks.map(t=>`<div class="staff-row"><span class="staff-role">${t.role}</span><span>${t.task}</span></div>`).join('')
+      : '<div class="timeline-row"><span class="timeline-time">--:--</span><span>Venue team standing by.</span></div>';
+  }
+  const timeEl = document.getElementById('crisis-timeline-list');
+  if(timeEl){
+    timeEl.innerHTML = crisisTimeline.length
+      ? crisisTimeline.map(t=>`<div class="timeline-row"><span class="timeline-time">${t.time}</span><span>${t.text}</span></div>`).join('')
+      : '<div class="timeline-row"><span class="timeline-time">--:--</span><span>No active crisis timeline.</span></div>';
+  }
+}
+function renderVenueCrisisMarkers(){
+  if(!map) return;
+  venueMapLayers.forEach(l=>map.removeLayer(l));
+  venueMapLayers = [];
+  const venue = getVenue();
+  const crisis = activeCrisis;
+  const venueIcon = L.divIcon({ html:'<div class="venue-marker">VENUE</div>', className:'', iconSize:[70,26], iconAnchor:[35,13] });
+  const safeIcon = L.divIcon({ html:'<div class="safe-marker">SAFE ZONE</div>', className:'', iconSize:[86,26], iconAnchor:[43,13] });
+  const gateIcon = L.divIcon({ html:'<div class="gate-marker">RESPONDER GATE</div>', className:'', iconSize:[116,26], iconAnchor:[58,13] });
+  const venueLatLng = [venue.lat, venue.lng];
+  const safeLatLng = [venue.lat + 0.006, venue.lng - 0.006];
+  const gateLatLng = [venue.lat - 0.004, venue.lng + 0.006];
+  venueMapLayers.push(L.marker(venueLatLng,{icon:venueIcon,zIndexOffset:1200}).addTo(map).bindPopup(`${venue.name}<br>${crisis ? crisis.affectedZone : 'Monitoring'}`));
+  venueMapLayers.push(L.marker(safeLatLng,{icon:safeIcon,zIndexOffset:1200}).addTo(map));
+  venueMapLayers.push(L.marker(gateLatLng,{icon:gateIcon,zIndexOffset:1200}).addTo(map));
+  venueMapLayers.push(L.circle(venueLatLng,{radius:420,color:'#FF3366',fillColor:'#FF3366',fillOpacity:crisis ? 0.06 : 0.025,weight:1,dashArray:'4 4'}).addTo(map));
+  try { map.fitBounds(L.latLngBounds([venueLatLng,safeLatLng,gateLatLng]),{padding:[50,50]}); } catch(e){}
 }
 
 function pickHospitalForRoute(route){
@@ -639,6 +874,9 @@ window.onload = () => {
   initCharts();
   renderHospitalPanel(null);
   updateConflictBrief(null);
+  renderTrafficSourceBadge();
+  renderHospitalityCommand();
+  renderVenueCrisisMarkers();
   refreshLiveTraffic().catch(()=>{});
   setInterval(()=>{ refreshLiveTraffic().catch(()=>{}); }, TRAFFIC_SYNC_MS);
 
@@ -784,14 +1022,24 @@ function renderDetections(){
     stopParticles();
   }
 
+  const venueLive = liveArr.find(([,d])=>d.crisis_type);
+  if(venueLive){
+    const d = venueLive[1];
+    document.getElementById('alert-title').textContent = `${String(d.crisis_type).toUpperCase()} - ${d.affected_zone || d.intersection_name}`;
+    document.getElementById('alert-sub').textContent = `${d.venue_type || 'Venue'} command active - responder gate: ${d.responder_gate || 'assigned'}`;
+    document.getElementById('alert-conf').textContent = `${(d.confidence*100).toFixed(0)}%`;
+    pill.innerHTML = '<span class="dot"></span> VENUE CRISIS';
+  }
+
   list.innerHTML = arr.slice(0,10).map(([,d])=>`
     <div class="det-card ${d.status}">
       <div class="det-top">
-        <span class="det-name">${d.intersection_name}</span>
+        <span class="det-name">${d.crisis_type ? `${d.crisis_type} - ${d.affected_zone || d.intersection_name}` : d.intersection_name}</span>
         <span class="det-status ${d.status}">${d.status.toUpperCase()}</span>
       </div>
       <div class="det-meta">
         <span class="det-conf">${(d.confidence*100).toFixed(0)}% match</span>
+        ${d.responder_gate ? `<span>${d.responder_gate}</span>` : ''}
         <span>${timeAgo(d.timestamp)}</span>
       </div>
     </div>`).join('');
@@ -1534,8 +1782,9 @@ function showDecisionTree(isSiren, conf, noiseType){
 
 // ── AUDIO SIMULATION ──────────────────────────────────────────
 function setBtns(disabled){
-  ['btn-siren','btn-conflict','btn-noise','btn-replay'].forEach(id=>{
-    document.getElementById(id).disabled = disabled;
+  ['btn-siren','btn-conflict','btn-noise','btn-replay','btn-crisis-medical','btn-crisis-fire','btn-crisis-security','btn-crisis-evac'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.disabled = disabled;
   });
 }
 
@@ -1583,6 +1832,80 @@ async function runAudioSimulation(type){
 };
 
 // ── CONFLICT SIMULATION ───────────────────────────────────────
+function pickRouteForVenue(){
+  const venue = getVenue();
+  return ROUTES
+    .map(r=>({ route:r, dist:haversine(venue.lat, venue.lng, r.origin.lat, r.origin.lng) }))
+    .sort((a,b)=>a.dist-b.dist)[0].route;
+}
+
+async function runCrisisScenario(type){
+  if(isAnalyzing) return;
+  isAnalyzing = true;
+  setBtns(true);
+
+  activeCrisis = buildCrisisState(type);
+  const preset = CRISIS_PRESETS[type] || CRISIS_PRESETS.medical;
+  staffTasks = preset.tasks.map(([role, task])=>({ role, task, status:'assigned', time:timelineStamp() }));
+  crisisTimeline = [];
+  pushTimeline(`${activeCrisis.label} detected at ${activeCrisis.venue}`);
+  pushTimeline(`Affected zone isolated: ${activeCrisis.affectedZone}`);
+  pushTimeline(`Staff dispatch assigned: ${staffTasks.length} teams`);
+  if(type === 'medical') pushTimeline(`Ambulance responder bridge opened via ${activeCrisis.responderGate}`);
+  else pushTimeline(`Guests directed to ${activeCrisis.safeZone}`);
+  renderHospitalityCommand();
+  renderVenueCrisisMarkers();
+
+  document.getElementById('ai-status').textContent = `${activeCrisis.label.toUpperCase()} - VENUE COMMAND`;
+  document.getElementById('alert-title').textContent = `${activeCrisis.label.toUpperCase()} - ${activeCrisis.affectedZone}`;
+  document.getElementById('alert-sub').textContent = `${activeCrisis.venue} - staff synchronized, responder gate: ${activeCrisis.responderGate}`;
+  document.getElementById('alert-conf').textContent = Math.round(activeCrisis.confidence*100)+'%';
+  document.getElementById('alert-banner').className = type === 'fire' ? 'alert-banner conflict-alert' : 'alert-banner active-alert';
+  document.getElementById('status-pill').className = type === 'fire' ? 'status-pill conflict' : 'status-pill alert';
+  document.getElementById('status-pill').innerHTML = '<span class="dot"></span> VENUE CRISIS';
+
+  if(type === 'medical'){
+    await executePipeline(pickRouteForVenue(), {
+      confidence: activeCrisis.confidence,
+      source:'venue_medical_crisis',
+      severity: activeCrisis.severity,
+      venueType: activeCrisis.venueType,
+      crisisType: activeCrisis.label,
+      affectedZone: activeCrisis.affectedZone,
+      responderGate: activeCrisis.responderGate,
+      safeZone: activeCrisis.safeZone,
+      resolveMs: 14000
+    });
+  } else {
+    const venue = getVenue();
+    const detRef = _push(_ref(_db,'detections'));
+    await _set(detRef,{
+      intersection_id:`VENUE_${activeVenueKey.toUpperCase()}`,
+      intersection_name: activeCrisis.venue,
+      lat: venue.lat, lng: venue.lng,
+      confidence: activeCrisis.confidence,
+      status:'active',
+      source:'venue_crisis',
+      venue_type: activeCrisis.venueType,
+      crisis_type: activeCrisis.label,
+      affected_zone: activeCrisis.affectedZone,
+      responder_gate: activeCrisis.responderGate,
+      safe_zone: activeCrisis.safeZone,
+      timestamp:new Date().toISOString()
+    });
+    setTimeout(async()=>{
+      await _set(_ref(_db,'detections/'+detRef.key+'/status'),'resolved');
+      if(activeCrisis){
+        pushTimeline(`${activeCrisis.label} marked resolved for demo cycle`);
+        renderHospitalityCommand();
+      }
+    }, 12000);
+  }
+
+  isAnalyzing = false;
+  setBtns(false);
+}
+
 async function runConflictSimulation(options = {}){
   if(isAnalyzing) return;
   isAnalyzing = true;
@@ -1591,6 +1914,10 @@ async function runConflictSimulation(options = {}){
   const scenario = buildConflictScenario({ deterministic: !!options.deterministic });
   latestConflictInsight = scenario;
   updateConflictBrief(scenario);
+  if(activeCrisis){
+    pushTimeline(`External responders arbitrated: ${scenario.winner.ambulanceId} first, ${scenario.loser.ambulanceId} staggered`);
+    renderHospitalityCommand();
+  }
 
   document.getElementById('ai-status').textContent = 'ARBITRATING MULTI-AMBULANCE CONFLICT...';
   if(!micActive) drawAnalyzingWave(true);
@@ -1608,6 +1935,11 @@ async function runConflictSimulation(options = {}){
     etaBefore: Number(scenario.winner.etaBefore.toFixed(1)),
     etaAfter: Number(scenario.winner.etaAfter.toFixed(1)),
     trafficMultiplier: Number(scenario.winner.trafficMultiplier.toFixed(2)),
+    venueType: activeCrisis?.venueType || null,
+    crisisType: activeCrisis?.label || 'Responder Conflict',
+    affectedZone: activeCrisis?.affectedZone || null,
+    responderGate: activeCrisis?.responderGate || null,
+    safeZone: activeCrisis?.safeZone || null,
     conflictGroup: scenario.deterministic ? 'replay' : 'live'
   });
   await wait(550);
@@ -1620,6 +1952,11 @@ async function runConflictSimulation(options = {}){
     etaBefore: Number(scenario.loser.etaBefore.toFixed(1)),
     etaAfter: Number(scenario.loser.etaAfter.toFixed(1)),
     trafficMultiplier: Number(scenario.loser.trafficMultiplier.toFixed(2)),
+    venueType: activeCrisis?.venueType || null,
+    crisisType: activeCrisis?.label || 'Responder Conflict',
+    affectedZone: activeCrisis?.affectedZone || null,
+    responderGate: activeCrisis?.responderGate || null,
+    safeZone: activeCrisis?.safeZone || null,
     conflictGroup: scenario.deterministic ? 'replay' : 'live'
   });
 
@@ -1651,6 +1988,11 @@ async function executePipeline(forcedRoute=null, meta = {}){
     eta_after_min: meta.etaAfter ?? null,
     traffic_multiplier: meta.trafficMultiplier ?? null,
     conflict_group: meta.conflictGroup || null,
+    venue_type: meta.venueType || null,
+    crisis_type: meta.crisisType || null,
+    affected_zone: meta.affectedZone || null,
+    responder_gate: meta.responderGate || null,
+    safe_zone: meta.safeZone || null,
     timestamp: new Date().toISOString(),
   });
 
@@ -1759,7 +2101,8 @@ function generateReport(){
   const resolved = arr.filter(d=>d.status==='resolved').length;
   const avgConf  = total ? (arr.reduce((s,d)=>s+d.confidence,0)/total*100).toFixed(1) : 0;
   const top      = Object.values(heatmap).sort((a,b)=>b.total_detections-a.total_detections)[0];
-  const minSaved = (total*9.4).toFixed(0);
+  const avgTraffic = total ? (arr.reduce((s,d)=>s + (Number(d.traffic_multiplier) || 1.2),0)/total) : 1.2;
+  const minSaved = (total*3.2*avgTraffic).toFixed(0);
   const now      = new Date().toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'});
 
   document.getElementById('report-date').textContent      = 'Generated: '+now;
@@ -1767,14 +2110,17 @@ function generateReport(){
   document.getElementById('report-resolved').textContent  = resolved;
   document.getElementById('report-fp-count').textContent  = falsePositives.length;
   document.getElementById('report-conf').textContent      = avgConf+'%';
+  document.getElementById('report-crisis-type').textContent = activeCrisis ? activeCrisis.label : 'No active venue crisis';
+  document.getElementById('report-staff-tasks').textContent = activeCrisis ? `${staffTasks.length}/${staffTasks.length}` : '0/0';
   document.getElementById('report-minsaved').textContent  = minSaved+' min';
   document.getElementById('report-hotspot').textContent   = top ? top.intersection_name : 'N/A';
+  document.getElementById('report-guests').textContent     = activeCrisis ? `${activeCrisis.guestsCleared}%` : '--';
+  document.getElementById('report-gate').textContent       = activeCrisis ? activeCrisis.responderGate : '--';
   document.getElementById('report-insight-text').innerHTML =
-    `AcousticGuard processed <strong>${total} emergency events</strong> saving an estimated <strong>${minSaved} minutes</strong> of ambulance delay. `+
-    (top?`<strong>${top.intersection_name}</strong> is flagged as a critical bottleneck requiring signal priority infrastructure upgrade. `:'')+
-    `AI classifier achieved <strong>${avgConf}% average confidence</strong> with <strong>${falsePositives.length} false positives filtered</strong>, `+
-    `demonstrating production-grade reliability for city-scale deployment. `+
-    `In cardiac emergencies, this response time improvement statistically corresponds to a <strong>${(total*1.33).toFixed(1)}% improvement in patient survival rates</strong>.`;
+    `AcousticGuard coordinated <strong>${total} venue/emergency events</strong> with an estimated <strong>${minSaved} minutes</strong> of responder delay reduced. `+
+    (activeCrisis?`The current ${activeCrisis.venueType.toLowerCase()} scenario is <strong>${activeCrisis.label}</strong> in <strong>${activeCrisis.affectedZone}</strong>, with guests directed to <strong>${activeCrisis.safeZone}</strong>. `:'')+
+    (top?`<strong>${top.intersection_name}</strong> remains the main external traffic bottleneck for responders. `:'')+
+    `The system combines AI audio checks, staff task synchronization, TomTom traffic routing, and hospital-aware escalation for hospitality crisis response.`;
 
   document.getElementById('report-modal').classList.add('visible');
 };
@@ -1927,7 +2273,7 @@ window._appReady = true;
   <div class="brand">
     <div class="brand-icon">⚡</div>
     <div class="brand-text">Acoustic<span>Guard</span>.ai</div>
-    <span class="theme-badge">Google SDG: Rapid Crisis Response</span>
+    <span class="theme-badge">Hospitality Rapid Crisis Response</span>
   </div>
   <div class="nav-tabs">
     <div class="nav-tab active" id="tab-live"      onclick="switchTab('live')">Live Dashboard</div>
@@ -1943,22 +2289,42 @@ window._appReady = true;
       <span class="mic-dot"></span> LIVE MIC
     </button>
     <button class="info-btn" onclick="openMethodModal()">Method &amp; Safety</button>
+    <div class="traffic-badge fallback" id="traffic-source-badge">Live Traffic: Fallback</div>
     <div class="status-pill" id="status-pill"><span class="dot"></span> LISTENING</div>
   </div>
 </div>
 
 <div class="proof-strip">
   <div class="proof-card">
-    <div class="proof-title">Problem Fit</div>
-    <div class="proof-text">Emergency route clearing for Bengaluru congestion and hospital load balancing.</div>
+    <div class="proof-title">Crisis Detection</div>
+    <div class="proof-text">Live AI audio and scenario triggers identify venue emergencies across guests, staff, and responders.</div>
   </div>
   <div class="proof-card">
-    <div class="proof-title">Real AI Evidence</div>
-    <div class="proof-text">Live mic inference with TensorFlow.js + YAMNet confidence trace.</div>
+    <div class="proof-title">Staff Synchronization</div>
+    <div class="proof-text">Front desk, security, medical, and floor teams receive clear crisis tasks and timeline updates.</div>
   </div>
   <div class="proof-card">
-    <div class="proof-title">City Scalability</div>
-    <div class="proof-text">Edge-node simulation and corridor sequencing designed for district-level rollout.</div>
+    <div class="proof-title">Responder Routing</div>
+    <div class="proof-text">TomTom traffic, hospital routing, and ambulance arbitration connect venue command to emergency services.</div>
+  </div>
+</div>
+
+<div class="venue-bar">
+  <div class="venue-left">
+    <span class="venue-label">Venue Mode</span>
+    <select class="venue-select" id="venue-select" onchange="changeVenueMode(this.value)">
+      <option value="hotel">Hotel</option>
+      <option value="mall">Mall</option>
+      <option value="stadium">Stadium</option>
+      <option value="resort">Resort</option>
+    </select>
+    <span class="venue-label" id="venue-name">Orion Grand Hotel - Hotel Mode</span>
+  </div>
+  <div class="crisis-actions">
+    <button class="crisis-btn medical" id="btn-crisis-medical" onclick="runCrisisScenario('medical')">Medical Crisis</button>
+    <button class="crisis-btn fire" id="btn-crisis-fire" onclick="runCrisisScenario('fire')">Fire Alarm</button>
+    <button class="crisis-btn security" id="btn-crisis-security" onclick="runCrisisScenario('security')">Security</button>
+    <button class="crisis-btn evac" id="btn-crisis-evac" onclick="runCrisisScenario('evacuation')">Evacuation</button>
   </div>
 </div>
 
@@ -2089,6 +2455,37 @@ window._appReady = true;
         </div>
       </div>
 
+      <!-- Hospitality Command -->
+      <div class="command-panel">
+        <div class="command-head">
+          <span class="command-title">Hospitality Command</span>
+          <span class="command-pill" id="command-status">Monitoring</span>
+        </div>
+        <div class="command-grid">
+          <div class="command-card">
+            <div class="command-k">Crisis Type</div>
+            <div class="command-v" id="crisis-type-display">Standby (Ready)</div>
+          </div>
+          <div class="command-card">
+            <div class="command-k">Guest Safety</div>
+            <div class="command-v" id="guest-safety">No active crisis</div>
+            <div class="command-v" id="guest-progress" style="color:var(--neon-green);margin-top:4px">No evacuation active</div>
+          </div>
+          <div class="command-card">
+            <div class="command-k">Responder Bridge</div>
+            <div class="command-v" id="responder-bridge">Service Gate B / Fallback</div>
+          </div>
+          <div class="command-card">
+            <div class="command-k">Staff Dispatch</div>
+            <div class="command-v" id="staff-complete">0/0 tasks assigned</div>
+          </div>
+        </div>
+        <div class="command-k" style="margin-bottom:6px">Staff Tasks</div>
+        <div class="staff-list" id="staff-task-list"></div>
+        <div class="command-k" style="margin:10px 0 6px">Crisis Timeline</div>
+        <div class="timeline-list" id="crisis-timeline-list"></div>
+      </div>
+
       <!-- Hospital Routing -->
       <div class="hospital-match">
         <div style="font-size:9px;font-weight:700;color:var(--text-muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px">Smart Hospital Routing</div>
@@ -2117,10 +2514,10 @@ window._appReady = true;
 <div class="view-container layout-analytics" id="view-analytics">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px">
     <div>
-      <h2 style="font-size:18px;font-weight:700;margin-bottom:4px">City Analytics & Urban Planning</h2>
-      <p style="color:var(--text-muted);font-size:11px">Historical data from all AcousticGuard edge nodes · Bengaluru metro area</p>
+      <h2 style="font-size:18px;font-weight:700;margin-bottom:4px">Hospitality Crisis Analytics</h2>
+      <p style="color:var(--text-muted);font-size:11px">Venue incidents, responder corridors, staff coordination, and Bengaluru traffic context</p>
     </div>
-    <button class="report-btn" onclick="generateReport()">📋 Generate City Report</button>
+    <button class="report-btn" onclick="generateReport()">Generate Crisis Report</button>
   </div>
 
   <div class="analytics-grid">
@@ -2136,15 +2533,15 @@ window._appReady = true;
 
   <div class="analytics-bottom">
     <div class="impact-card">
-      <div class="impact-label-sm">Without AcousticGuard</div>
+      <div class="impact-label-sm">Without Crisis Command</div>
       <div class="impact-number" style="color:var(--neon-red)" id="without-stat">-- hrs</div>
       <div class="impact-desc" id="without-sub">Calculating ambulance delay data...</div>
-      <div class="impact-sub">Based on avg 9.4 min delay/km in Bengaluru peak traffic (BBMP 2024 data)</div>
+      <div class="impact-sub">Traffic-aware responder delay estimate from TomTom/fallback multipliers</div>
     </div>
     <div class="impact-card">
-      <div class="impact-label-sm">Total Response Time Saved</div>
+      <div class="impact-label-sm">Responder Time Saved</div>
       <div class="impact-number" style="color:var(--neon-green)" id="impact-minsaved">--</div>
-      <div class="impact-desc">Across <span id="impact-detections" style="color:var(--neon-cyan)">--</span> emergency events this session</div>
+      <div class="impact-desc">Across <span id="impact-detections" style="color:var(--neon-cyan)">--</span> venue/emergency events this session</div>
       <div class="impact-sub">Each minute saved increases cardiac arrest survival by ~10%</div>
     </div>
     <div class="impact-card">
@@ -2174,7 +2571,7 @@ window._appReady = true;
 <div class="modal-overlay" id="report-modal">
   <div class="report-card">
     <div class="report-header">
-      <div class="report-title">⚡ AcousticGuard City Report</div>
+      <div class="report-title">AcousticGuard Hospitality Crisis Report</div>
       <button class="report-close" onclick="closeReport()">✕</button>
     </div>
     <div class="report-meta" id="report-date">Generated: --</div>
@@ -2185,12 +2582,16 @@ window._appReady = true;
       <div class="report-row"><span>Events resolved</span><span class="report-val" id="report-resolved">--</span></div>
       <div class="report-row"><span>False positives filtered</span><span class="report-val" id="report-fp-count">--</span></div>
       <div class="report-row"><span>Average AI confidence</span><span class="report-val" id="report-conf">--</span></div>
+      <div class="report-row"><span>Venue crisis type</span><span class="report-val" id="report-crisis-type">--</span></div>
+      <div class="report-row"><span>Staff tasks assigned</span><span class="report-val" id="report-staff-tasks">--</span></div>
     </div>
 
     <div class="report-section">
-      <div class="report-section-title">Urban Impact</div>
+      <div class="report-section-title">Hospitality Impact</div>
       <div class="report-row"><span>Total response time saved</span><span class="report-val" id="report-minsaved">--</span></div>
       <div class="report-row"><span>Critical bottleneck flagged</span><span class="report-val" id="report-hotspot">--</span></div>
+      <div class="report-row"><span>Guests accounted / safe-zone progress</span><span class="report-val" id="report-guests">--</span></div>
+      <div class="report-row"><span>Responder entry gate</span><span class="report-val" id="report-gate">--</span></div>
       <div class="report-row"><span>Infrastructure recommendation</span><span class="report-val" style="color:var(--neon-amber)">Signal Priority Upgrade</span></div>
     </div>
 
@@ -2229,14 +2630,14 @@ window._appReady = true;
 
     <div class="report-section">
       <div class="report-section-title">Scalability and Citations</div>
-      <div class="report-row"><span>Architecture</span><span class="report-val">Edge nodes + corridor arbitration</span></div>
-      <div class="report-row"><span>Traffic premise</span><span class="report-val">Bengaluru congestion benchmark assumptions</span></div>
+      <div class="report-row"><span>Architecture</span><span class="report-val">Venue command + responder corridor</span></div>
+      <div class="report-row"><span>Traffic premise</span><span class="report-val">TomTom live flow + fallback model</span></div>
       <div class="report-row"><span>Medical premise</span><span class="report-val">Faster emergency response survival linkage</span></div>
     </div>
 
     <div class="report-insight">
-      This prototype demonstrates end-to-end emergency orchestration: siren detection, conflict arbitration,
-      hospital-aware routing, and city impact analytics in one operational flow.
+      This prototype demonstrates hospitality crisis coordination: venue incident detection, staff tasking,
+      guest-safe-zone routing, responder gate assignment, ambulance arbitration, and traffic-aware hospital routing.
     </div>
 
     <div class="report-footer">
