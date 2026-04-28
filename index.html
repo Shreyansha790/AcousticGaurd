@@ -432,6 +432,7 @@ startListeners();
 let map, mapLayers = [], animFrame;
 let volumeChart, confidenceChart;
 let detections = {}, corridors = {}, heatmap = {};
+let venueDbRecords = {}, zoneDbRecords = {}, gateDbRecords = {}, playbookDbRecords = {};
 let falsePositives = [];
 let isAnalyzing = false, trafficClickCount = 0;
 let timeSavedInterval = null, timeSavedSeconds = 0;
@@ -661,6 +662,86 @@ function calculateRouteETA(route, hospital, trafficMultiplier){
 
 function getVenue(){
   return VENUES[activeVenueKey] || VENUES.hotel;
+}
+function titleCase(txt){
+  return String(txt || '').replace(/[_-]+/g,' ').replace(/\b\w/g, c=>c.toUpperCase()).trim();
+}
+function tasksFromPlaybook(pb){
+  const t = pb?.tasks || {};
+  const out = [];
+  if(t.front_desk) out.push(['Front Desk', t.front_desk]);
+  if(t.security) out.push(['Security', t.security]);
+  if(t.medical_team) out.push(['Medical', t.medical_team]);
+  if(t.floor_manager) out.push(['Floor Manager', t.floor_manager]);
+  if(t.engineering) out.push(['Engineering', t.engineering]);
+  return out.length ? out : null;
+}
+function applyVenueDataFromDb(){
+  const venues = Object.entries(venueDbRecords || {});
+  if(!venues.length) return;
+
+  const typeToVenueId = {};
+  venues.forEach(([id, v])=>{
+    const typeKey = String(v?.type || '').toLowerCase();
+    if(typeKey && !typeToVenueId[typeKey]) typeToVenueId[typeKey] = id;
+  });
+
+  Object.entries(typeToVenueId).forEach(([typeKey, venueId])=>{
+    const src = venueDbRecords[venueId];
+    if(!src) return;
+    if(!VENUES[typeKey]){
+      VENUES[typeKey] = {
+        label: titleCase(typeKey),
+        name: src.name || titleCase(typeKey),
+        lat: Number(src.lat) || 12.9716,
+        lng: Number(src.lng) || 77.5946,
+        zones: ['Lobby','Service Area','Assembly Point'],
+        safeZone: src.safe_zone || 'Assembly Point',
+        responderGate: src.default_responder_gate || 'Service Gate'
+      };
+    }
+    const zoneObj = zoneDbRecords?.[venueId] || {};
+    const zoneNames = Object.values(zoneObj).map(z=>z?.name).filter(Boolean);
+    const gateObj = gateDbRecords?.[venueId] || {};
+    const gateLabels = Object.values(gateObj).map(g=>g?.label).filter(Boolean);
+
+    VENUES[typeKey].label = titleCase(src.type || typeKey);
+    VENUES[typeKey].name = src.name || VENUES[typeKey].name;
+    VENUES[typeKey].lat = Number(src.lat) || VENUES[typeKey].lat;
+    VENUES[typeKey].lng = Number(src.lng) || VENUES[typeKey].lng;
+    VENUES[typeKey].zones = zoneNames.length ? zoneNames : VENUES[typeKey].zones;
+    VENUES[typeKey].safeZone = src.safe_zone || VENUES[typeKey].safeZone;
+    VENUES[typeKey].responderGate = src.default_responder_gate || gateLabels[0] || VENUES[typeKey].responderGate;
+  });
+
+  const selectedVenueId = typeToVenueId[activeVenueKey];
+  if(selectedVenueId){
+    const pb = playbookDbRecords?.[selectedVenueId] || {};
+    const med = tasksFromPlaybook(pb.medical_emergency);
+    const fire = tasksFromPlaybook(pb.fire_alarm);
+    const sec = tasksFromPlaybook(pb.security_incident);
+    const evac = tasksFromPlaybook(pb.evacuation);
+    if(med) CRISIS_PRESETS.medical.tasks = med;
+    if(fire) CRISIS_PRESETS.fire.tasks = fire;
+    if(sec) CRISIS_PRESETS.security.tasks = sec;
+    if(evac) CRISIS_PRESETS.evacuation.tasks = evac;
+  }
+
+  const select = document.getElementById('venue-select');
+  if(select){
+    const existing = new Set(Array.from(select.options).map(o=>o.value));
+    Object.keys(VENUES).forEach(k=>{
+      if(!existing.has(k)){
+        const opt = document.createElement('option');
+        opt.value = k;
+        opt.textContent = VENUES[k].label || titleCase(k);
+        select.appendChild(opt);
+      }
+    });
+  }
+
+  renderHospitalityCommand();
+  renderVenueCrisisMarkers();
 }
 function getTrafficSourceLabel(){
   return Object.keys(liveTrafficByNode).length ? 'TomTom Live' : 'Fallback';
@@ -922,8 +1003,8 @@ let _db, _ref, _onValue, _push, _set;
 window._startFirebase = function(db, ref, onValue, push, set){
   if(!db){
     // Local fallback mode: keep demo fully usable when Firebase/network is unavailable.
-    const store = { detections:{}, corridors:{}, heatmap:{} };
-    const listeners = { detections:[], corridors:[], heatmap:[] };
+    const store = { detections:{}, corridors:{}, heatmap:{}, venues:{}, venue_zones:{}, responder_gates:{}, staff_playbooks:{} };
+    const listeners = { detections:[], corridors:[], heatmap:[], venues:[], venue_zones:[], responder_gates:[], staff_playbooks:[] };
     const mkSnap = (name)=>({ val: ()=>store[name] });
     const emit = (name)=>listeners[name].forEach((cb)=>cb(mkSnap(name)));
     let localCounter = 0;
@@ -977,6 +1058,10 @@ window._startFirebase = function(db, ref, onValue, push, set){
   _onValue(_ref(_db,'detections'), snap=>{ detections=snap.val()||{}; renderDetections(); updateStats(); });
   _onValue(_ref(_db,'corridors'),  snap=>{ corridors=snap.val()||{};  renderActiveCorridor(); });
   _onValue(_ref(_db,'heatmap'),    snap=>{ heatmap=snap.val()||{};    renderHeatmap(); });
+  _onValue(_ref(_db,'venues'),           snap=>{ venueDbRecords=snap.val()||{}; applyVenueDataFromDb(); });
+  _onValue(_ref(_db,'venue_zones'),      snap=>{ zoneDbRecords=snap.val()||{}; applyVenueDataFromDb(); });
+  _onValue(_ref(_db,'responder_gates'),  snap=>{ gateDbRecords=snap.val()||{}; applyVenueDataFromDb(); });
+  _onValue(_ref(_db,'staff_playbooks'),  snap=>{ playbookDbRecords=snap.val()||{}; applyVenueDataFromDb(); });
 };
 
 // ── RENDER DETECTIONS ─────────────────────────────────────────
