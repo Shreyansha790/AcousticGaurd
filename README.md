@@ -85,6 +85,7 @@ Hospitality venues face fast-moving incidents where information is often fragmen
 
 - `index.html`: Single source of truth for the full prototype app
 - `.gitignore`: Local artifact exclusions
+- `PROJECT_UNDERSTANDING.md`: Full project understanding and implementation status document
 
 ## Running Locally
 
