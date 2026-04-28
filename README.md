@@ -4,6 +4,20 @@ AcousticGuard.ai is a hospitality crisis-response command dashboard for hotels, 
 
 The prototype is built for the Google Solution Challenge rapid crisis response theme. It connects distressed guests, venue staff, on-site security, medical teams, hospitals, and ambulance responders in one operational dashboard.
 
+## Current Build Status (April 28, 2026)
+
+This repository is currently a **working hackathon demo build** with:
+
+- Hospitality-first command workflow (hotel/mall/stadium/resort)
+- Venue crisis scenarios (medical, fire, security, evacuation)
+- Medical crisis routing anchored from **venue origin to nearest/best hospital**
+- TomTom-backed road geometry rendering for live ambulance route visualization
+- Multi-ambulance conflict arbitration with deterministic replay mode
+- Resilient live-mic inference pipeline:
+  - Primary: TensorFlow.js + YAMNet
+  - Fallback: in-browser heuristic classifier when model/CDN fails
+- Firebase Realtime Database integration plus local fallback when Firebase/network is unavailable
+
 ## How It Fits The Challenge
 
 Hospitality venues face fast-moving incidents where information is often fragmented between guests, front desk, security, floor managers, and emergency services. AcousticGuard.ai addresses this by:
@@ -30,12 +44,15 @@ Hospitality venues face fast-moving incidents where information is often fragmen
 - `Real AI Audio Detection`:
   - Live mic capture in browser
   - TensorFlow.js + YAMNet-based sound classification
+  - Auto-fallback classifier to prevent pipeline breakage if YAMNet cannot load
   - Siren/noise confidence scoring with decision trace
 
 - `Emergency Corridor Activation`:
   - Automatic route activation on high-confidence siren or medical-crisis events
+  - Medical crisis path starts from selected hospitality venue and resolves to nearest hospital
+  - Exact road-path geometry from TomTom Routing API for map visualization
   - Animated corridor rendering on Leaflet map
-  - Signal node sequencing visualization
+  - Signal node sequencing visualization (kept minimal in venue-medical flow to avoid map clutter)
 
 - `Multi-Ambulance Arbitration`:
   - Conflict-first responder demo flow
@@ -96,3 +113,4 @@ Then open:
 - This is a hackathon prototype, not a certified emergency-service or medical device.
 - The exposed TomTom key should be rotated after demos/submission.
 - If Firebase or TomTom is unavailable, the app stays usable through local/demo fallback paths.
+- If YAMNet model fetch fails (network/CDN), the mic pipeline continues using fallback inference mode.
