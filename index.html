@@ -158,9 +158,9 @@
   .ai-status-text { font-family:var(--mono); font-size:10px; color:var(--ink-700); letter-spacing:0.02em; }
 
   /* ── LIVE MIC WAVEFORM (canvas-based) ── */
-  .waveform-box { height:54px; background:#1A1F2E; border-radius:3px; overflow:hidden; margin-bottom:10px; border:1px solid var(--rule); position:relative; cursor:pointer; }
+  .waveform-box { height:54px; background:#F0ECE3; border-radius:3px; overflow:hidden; margin-bottom:10px; border:1px solid var(--rule-soft); position:relative; cursor:pointer; }
   #waveformCanvas { width:100%; height:100%; display:block; }
-  .mic-hint { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:9px; color:rgba(255,255,255,0.35); font-family:var(--mono); letter-spacing:0.12em; text-transform:uppercase; pointer-events:none; transition:opacity 0.3s; }
+  .mic-hint { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:9px; color:rgba(26,31,46,0.40); font-family:var(--mono); letter-spacing:0.14em; text-transform:uppercase; pointer-events:none; transition:opacity 0.3s; }
   .waveform-box.mic-active .mic-hint { opacity:0; }
 
   /* Simulated bars (fallback) */
@@ -1521,7 +1521,7 @@ function drawIdleWave(){
 
   function draw(){
     waveCtx.clearRect(0,0,W,H);
-    waveCtx.strokeStyle = 'rgba(59,130,246,0.5)';
+    waveCtx.strokeStyle = 'rgba(44,74,107,0.55)';
     waveCtx.lineWidth = 1.5;
     waveCtx.beginPath();
     for(let x=0;x<W;x++){
@@ -1542,12 +1542,13 @@ function drawMicWave(dataArray, bufferLength){
   const sliceW = W / bufferLength;
   let x = 0;
 
-  // Gradient line based on amplitude
+  // Line color shifts from navy (quiet) to terracotta (loud) so it stays
+  // legible on the cream waveform background.
   const avg = dataArray.reduce((s,v)=>s+Math.abs(v-128),0)/bufferLength;
   const intensity = Math.min(avg/30, 1);
-  const r = Math.round(59  + intensity * (255-59));
-  const g = Math.round(130 + intensity * (51-130));
-  const b = Math.round(246 + intensity * (102-246));
+  const r = Math.round(44  + intensity * (177-44));
+  const g = Math.round(74  + intensity * (74-74));
+  const b = Math.round(107 + intensity * (58-107));
 
   waveCtx.strokeStyle = `rgb(${r},${g},${b})`;
   waveCtx.shadowColor = `rgba(${r},${g},${b},0.6)`;
