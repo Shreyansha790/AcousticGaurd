@@ -447,8 +447,92 @@ const ROUTES = [
 ];
 
 let latestConflictInsight = null;
+const TRAFFIC_NODES = ['Silk Board Junction','Marathahalli Bridge','Mekhri Circle','Indiranagar 100ft Rd','Yeshwanthpur Toll','South End Circle','Windsor Manor Junction','Domlur Flyover','Koramangala 5th Block','St. Johns Junction','HAL Gate Junction','Sadashivanagar Cross','MS Ramaiah Junction','Govardhan Theater','Columbia Asia Junction','Jayanagar 4th Block','Bannerghatta Main Rd','Hebbal Flyover'];
+const TOMTOM_API_KEY = window.__ACOUSTICGUARD_TOMTOM_KEY || 'b7HCHyABv9QuAUtV8HUcVzwudCtYlLYR';
+let liveTrafficByNode = {};
+let lastTrafficSyncAt = 0;
+const TRAFFIC_SYNC_MS = 120000;
 
 function wait(ms){ return new Promise((resolve)=>setTimeout(resolve, ms)); }
+function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+function hashString(s){
+  let h = 0;
+  for(let i=0;i<s.length;i++) h = ((h<<5)-h) + s.charCodeAt(i);
+  return Math.abs(h);
+}
+function getTrafficBaseByHour(hour){
+  if((hour>=8 && hour<=11) || (hour>=17 && hour<=21)) return 1.55; // peak
+  if(hour>=12 && hour<=16) return 1.28; // moderate
+  if(hour>=22 || hour<=5) return 0.92;  // low
+  return 1.12; // shoulder
+}
+function getTrafficMultiplierForNode(nodeName, now = new Date()){
+  if(liveTrafficByNode[nodeName] && Number.isFinite(liveTrafficByNode[nodeName].multiplier)){
+    return clamp(liveTrafficByNode[nodeName].multiplier, 0.85, 1.95);
+  }
+  const hour = now.getHours();
+  const base = getTrafficBaseByHour(hour);
+  const bucket = Math.floor(now.getMinutes()/10);
+  const seed = hashString(`${nodeName}|${now.getDate()}|${hour}|${bucket}`);
+  const jitter = ((seed % 19) - 9) / 100; // -0.09..0.09
+  return clamp(base + jitter, 0.85, 1.95);
+}
+function buildTrafficProbes(){
+  const probes = {};
+  ROUTES.forEach((r)=>{
+    probes[r.origin.name] = { lat:r.origin.lat, lng:r.origin.lng };
+    r.nodes.forEach((n)=>{ probes[n.intersection_name] = { lat:n.lat, lng:n.lng }; });
+  });
+  return probes;
+}
+const TRAFFIC_PROBES = buildTrafficProbes();
+async function fetchTomTomFlowMultiplier(lat, lng){
+  const url = `https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json?point=${lat},${lng}&unit=KMPH&key=${encodeURIComponent(TOMTOM_API_KEY)}`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error(`TomTom ${res.status}`);
+  const data = await res.json();
+  const seg = data?.flowSegmentData;
+  if(!seg) throw new Error('No flowSegmentData');
+  const current = Number(seg.currentSpeed) || 0;
+  const free = Number(seg.freeFlowSpeed) || 0;
+  const closure = !!seg.roadClosure;
+  if(current <= 0 || free <= 0) throw new Error('Invalid speed data');
+  const raw = closure ? 2.0 : (free / current);
+  return clamp(raw, 0.85, 1.95);
+}
+async function refreshLiveTraffic(){
+  if(!TOMTOM_API_KEY) return;
+  const now = Date.now();
+  if(now - lastTrafficSyncAt < TRAFFIC_SYNC_MS) return;
+  lastTrafficSyncAt = now;
+  const entries = Object.entries(TRAFFIC_PROBES);
+  const next = { ...liveTrafficByNode };
+  await Promise.all(entries.map(async([name, p])=>{
+    try{
+      const multiplier = await fetchTomTomFlowMultiplier(p.lat, p.lng);
+      next[name] = { multiplier, ts: Date.now(), source:'tomtom' };
+    } catch(e){
+      // Keep fallback/synthetic value path alive silently.
+    }
+  }));
+  liveTrafficByNode = next;
+}
+function getTrafficColor(mult){
+  if(mult >= 1.55) return '#FF3366';
+  if(mult >= 1.25) return '#FFCC00';
+  return '#00F0FF';
+}
+function summarizeRouteTraffic(route){
+  const names = [route.origin.name, ...route.nodes.map(n=>n.intersection_name)];
+  const multipliers = names.map(n=>getTrafficMultiplierForNode(n));
+  const avg = multipliers.reduce((a,b)=>a+b,0) / multipliers.length;
+  return { avgMultiplier: avg, names, multipliers };
+}
+function calculateRouteETA(route, hospital, trafficMultiplier){
+  const dist = routeDistanceKm(route, hospital);
+  const baseMinutesPerKm = 3.2;
+  return (dist * baseMinutesPerKm * trafficMultiplier) + 2.5;
+}
 
 function pickHospitalForRoute(route){
   const ranked = HOSPITALS
@@ -485,26 +569,27 @@ function buildConflictScenario(options = {}){
     .map((n)=>n.intersection_name);
   const overlapCount = Math.max(1, overlapNames.length);
 
-  const distA = routeDistanceKm(routeA, hospA);
-  const distB = routeDistanceKm(routeB, hospB);
-  const etaBaseA = distA * 3.0 + 2.5;
-  const etaBaseB = distB * 3.0 + 2.5;
-  const congestionPenalty = overlapCount * 2.1;
-  const etaBeforeA = etaBaseA + congestionPenalty;
-  const etaBeforeB = etaBaseB + congestionPenalty;
+  const trafficA = summarizeRouteTraffic(routeA);
+  const trafficB = summarizeRouteTraffic(routeB);
+  const etaBaseA = calculateRouteETA(routeA, hospA, trafficA.avgMultiplier);
+  const etaBaseB = calculateRouteETA(routeB, hospB, trafficB.avgMultiplier);
+  const congestionPenaltyA = overlapCount * 1.8 * trafficA.avgMultiplier;
+  const congestionPenaltyB = overlapCount * 1.8 * trafficB.avgMultiplier;
+  const etaBeforeA = etaBaseA + congestionPenaltyA;
+  const etaBeforeB = etaBaseB + congestionPenaltyB;
 
-  const priorityA = severityA.urgency * 0.58 + (100 / etaBeforeA) * 0.28 + overlapCount * 2.5;
-  const priorityB = severityB.urgency * 0.58 + (100 / etaBeforeB) * 0.28 + overlapCount * 2.5;
+  const priorityA = severityA.urgency * 0.50 + (100 / etaBeforeA) * 0.24 + overlapCount * 2.0 + trafficA.avgMultiplier * 8;
+  const priorityB = severityB.urgency * 0.50 + (100 / etaBeforeB) * 0.24 + overlapCount * 2.0 + trafficB.avgMultiplier * 8;
   const winnerKey = priorityA >= priorityB ? 'A' : 'B';
   const winner = winnerKey === 'A'
-    ? { route: routeA, hospital: hospA, severity: severityA, priority: priorityA, etaBefore: etaBeforeA, ambulanceId:'AMB-A1' }
-    : { route: routeB, hospital: hospB, severity: severityB, priority: priorityB, etaBefore: etaBeforeB, ambulanceId:'AMB-B7' };
+    ? { route: routeA, hospital: hospA, severity: severityA, priority: priorityA, etaBefore: etaBeforeA, ambulanceId:'AMB-A1', trafficMultiplier: trafficA.avgMultiplier }
+    : { route: routeB, hospital: hospB, severity: severityB, priority: priorityB, etaBefore: etaBeforeB, ambulanceId:'AMB-B7', trafficMultiplier: trafficB.avgMultiplier };
   const loser = winnerKey === 'A'
-    ? { route: routeB, hospital: hospB, severity: severityB, priority: priorityB, etaBefore: etaBeforeB, ambulanceId:'AMB-B7' }
-    : { route: routeA, hospital: hospA, severity: severityA, priority: priorityA, etaBefore: etaBeforeA, ambulanceId:'AMB-A1' };
+    ? { route: routeB, hospital: hospB, severity: severityB, priority: priorityB, etaBefore: etaBeforeB, ambulanceId:'AMB-B7', trafficMultiplier: trafficB.avgMultiplier }
+    : { route: routeA, hospital: hospA, severity: severityA, priority: priorityA, etaBefore: etaBeforeA, ambulanceId:'AMB-A1', trafficMultiplier: trafficA.avgMultiplier };
 
-  winner.etaAfter = winner.etaBefore * 0.63;
-  loser.etaAfter = loser.etaBefore * 0.86 + overlapCount * 0.45;
+  winner.etaAfter = winner.etaBefore * (0.60 + (winner.trafficMultiplier > 1.45 ? 0.05 : 0));
+  loser.etaAfter = loser.etaBefore * (0.82 + (loser.trafficMultiplier > 1.45 ? 0.07 : 0)) + overlapCount * 0.45;
 
   winner.saved = Math.max(0, winner.etaBefore - winner.etaAfter);
   loser.saved = Math.max(0, loser.etaBefore - loser.etaAfter);
@@ -515,8 +600,8 @@ function buildConflictScenario(options = {}){
     overlapCount,
     winner,
     loser,
-    reason: `${winner.severity.label} receives corridor first due to higher urgency and better life-critical window.`,
-    fairnessLog: `Shared nodes: ${overlapCount}. Winner gets immediate signal preemption, second ambulance gets staggered reroute with preserved ETA gain.`
+    reason: `${winner.severity.label} receives corridor first due to urgency, higher traffic load, and tighter ETA window.`,
+    fairnessLog: `Shared nodes: ${overlapCount}. Traffic multipliers -> A:${trafficA.avgMultiplier.toFixed(2)}x B:${trafficB.avgMultiplier.toFixed(2)}x. Winner gets immediate signal preemption; second ambulance gets staggered reroute.`
   };
 }
 
@@ -554,6 +639,8 @@ window.onload = () => {
   initCharts();
   renderHospitalPanel(null);
   updateConflictBrief(null);
+  refreshLiveTraffic().catch(()=>{});
+  setInterval(()=>{ refreshLiveTraffic().catch(()=>{}); }, TRAFFIC_SYNC_MS);
 
   // [ENHANCEMENT #2] Set up canvas waveform instead of div bars
   waveformCanvas = document.getElementById('waveformCanvas');
@@ -1303,7 +1390,7 @@ function renderActiveCorridor(){
   let mins = 0;
   nodesEl.innerHTML = `
     <div class="c-step"><span class="step-name" style="color:var(--neon-red)">🔴 ${c.origin_intersection}</span><span class="step-eta">ORIGIN</span></div>
-    ${nodes.map(n=>{ mins+=Math.floor(Math.random()*2)+2; return `<span style="color:var(--text-muted)">→</span><div class="c-step"><span class="step-name">⚠️ ${n.intersection_name}</span><span class="step-eta">T+${mins}min</span></div>`; }).join('')}
+    ${nodes.map(n=>{ const tm = getTrafficMultiplierForNode(n.intersection_name); mins += Math.max(1, Math.round(2.2 * tm)); return `<span style="color:var(--text-muted)">→</span><div class="c-step"><span class="step-name">⚠️ ${n.intersection_name}</span><span class="step-eta">T+${mins}m (${tm.toFixed(2)}x)</span></div>`; }).join('')}
     ${bestHosp?`<span style="color:var(--text-muted)">→</span><div class="c-step" style="border-color:rgba(0,255,136,0.35)"><span class="step-name" style="color:var(--neon-green)">🏥 ${bestHosp.name}</span><span class="step-eta" style="color:var(--neon-green)">${bestHosp.beds} beds ready</span></div>`:''}
   `;
 
@@ -1340,11 +1427,13 @@ function renderActiveCorridor(){
   });
 
   // Glowing polyline with dashed upcoming
-  const upcoming = L.polyline(path,{color:'#00F0FF',weight:4,opacity:0.9,dashArray:'8 4'}).addTo(map);
+  const originTraffic = getTrafficMultiplierForNode(c.origin_intersection || 'Bengaluru');
+  const trafficColor = getTrafficColor(originTraffic);
+  const upcoming = L.polyline(path,{color:trafficColor,weight:4,opacity:0.9,dashArray:'8 4'}).addTo(map);
   const traveled = L.polyline([path[0]],{color:'#FF3366',weight:5,opacity:0.85}).addTo(map);
 
   // Glow effect via a wider, more transparent line underneath
-  const glowLine = L.polyline(path,{color:'#00F0FF',weight:12,opacity:0.12}).addTo(map);
+  const glowLine = L.polyline(path,{color:trafficColor,weight:12,opacity:0.12}).addTo(map);
 
   mapLayers.push(upcoming, traveled, glowLine);
 
@@ -1387,6 +1476,7 @@ function renderConflicts(liveArr){
           <div>WINNER: <span style="color:var(--neon-green)">${insight.winner.ambulanceId}</span> (${insight.winner.severity.label})</div>
           <div>PRIORITY SCORE: ${insight.winner.priority.toFixed(1)} vs ${insight.loser.priority.toFixed(1)}</div>
           <div>SHARED NODES: ${insight.overlapCount} (${insight.overlapNames.join(', ') || 'critical overlap'})</div>
+          <div>TRAFFIC LOAD: ${insight.winner.ambulanceId} ${insight.winner.trafficMultiplier.toFixed(2)}x, ${insight.loser.ambulanceId} ${insight.loser.trafficMultiplier.toFixed(2)}x</div>
           <div>ETA DELTA: ${insight.winner.ambulanceId} -${insight.winner.saved.toFixed(1)}m, ${insight.loser.ambulanceId} -${insight.loser.saved.toFixed(1)}m</div>
           <div style="margin-top:4px;color:var(--text-main)">${insight.reason}</div>
         </div>
@@ -1517,6 +1607,7 @@ async function runConflictSimulation(options = {}){
     priorityScore: Number(scenario.winner.priority.toFixed(1)),
     etaBefore: Number(scenario.winner.etaBefore.toFixed(1)),
     etaAfter: Number(scenario.winner.etaAfter.toFixed(1)),
+    trafficMultiplier: Number(scenario.winner.trafficMultiplier.toFixed(2)),
     conflictGroup: scenario.deterministic ? 'replay' : 'live'
   });
   await wait(550);
@@ -1528,6 +1619,7 @@ async function runConflictSimulation(options = {}){
     priorityScore: Number(scenario.loser.priority.toFixed(1)),
     etaBefore: Number(scenario.loser.etaBefore.toFixed(1)),
     etaAfter: Number(scenario.loser.etaAfter.toFixed(1)),
+    trafficMultiplier: Number(scenario.loser.trafficMultiplier.toFixed(2)),
     conflictGroup: scenario.deterministic ? 'replay' : 'live'
   });
 
@@ -1557,6 +1649,7 @@ async function executePipeline(forcedRoute=null, meta = {}){
     priority_score: meta.priorityScore ?? null,
     eta_before_min: meta.etaBefore ?? null,
     eta_after_min: meta.etaAfter ?? null,
+    traffic_multiplier: meta.trafficMultiplier ?? null,
     conflict_group: meta.conflictGroup || null,
     timestamp: new Date().toISOString(),
   });
@@ -1608,15 +1701,17 @@ function updateAnalytics(){
   arr.forEach(d=>{ if(d.confidence>=0.9)hi++; else if(d.confidence>=0.8)mid++; else lo++; });
   confidenceChart.data.datasets[0].data=[hi,mid,lo]; confidenceChart.update('none');
 
-  const total=arr.length, avgDelay=9.4;
-  const minSaved=(total*avgDelay).toFixed(0);
-  const stuckHrs=((total*avgDelay)/60).toFixed(1);
+  const total=arr.length;
+  const avgTraffic = total ? (arr.reduce((s,d)=>s + (Number(d.traffic_multiplier) || 1.2),0)/total) : 1.2;
+  const avgDelay=(3.2 * avgTraffic).toFixed(1);
+  const minSaved=(total*Number(avgDelay)).toFixed(0);
+  const stuckHrs=((total*Number(avgDelay))/60).toFixed(1);
   document.getElementById('impact-detections').textContent = total;
   document.getElementById('impact-minsaved').textContent   = minSaved+' min';
   document.getElementById('impact-fp').textContent         = falsePositives.length;
   document.getElementById('impact-survival').textContent   = (total*0.133).toFixed(1)+'%';
   document.getElementById('without-stat').textContent      = stuckHrs+' hrs';
-  document.getElementById('without-sub').textContent       = `${total} sirens × ${avgDelay} min avg delay = ${minSaved} minutes of gridlock eliminated`;
+  document.getElementById('without-sub').textContent       = `${total} sirens x ${avgDelay} min avg delay (${avgTraffic.toFixed(2)}x traffic) = ${minSaved} minutes of gridlock eliminated`;
 
   renderNodeTable();
 }
@@ -1625,19 +1720,33 @@ function renderNodeTable(){
   const el = document.getElementById('node-status-table');
   if(!el) return;
   const nodes=[
-    {id:'BLRD_001',name:'Silk Board Junction',      status:'online',  latency:'12ms', lastPing:'2s ago'},
-    {id:'BLRD_005',name:'Marathahalli Bridge',       status:'online',  latency:'18ms', lastPing:'4s ago'},
-    {id:'BLRD_010',name:'Mekhri Circle',             status:'online',  latency:'9ms',  lastPing:'1s ago'},
-    {id:'BLRD_022',name:'Indiranagar 100ft Rd',      status:'delayed', latency:'142ms',lastPing:'8s ago'},
-    {id:'BLRD_034',name:'Yeshwanthpur Toll',         status:'online',  latency:'21ms', lastPing:'3s ago'},
-    {id:'BLRD_041',name:'South End Circle',          status:'online',  latency:'15ms', lastPing:'2s ago'},
-    {id:'BLRD_055',name:'Windsor Manor Junction',    status:'online',  latency:'11ms', lastPing:'5s ago'},
-  ];
+    {id:'BLRD_001',name:'Silk Board Junction'},
+    {id:'BLRD_005',name:'Marathahalli Bridge'},
+    {id:'BLRD_010',name:'Mekhri Circle'},
+    {id:'BLRD_022',name:'Indiranagar 100ft Rd'},
+    {id:'BLRD_034',name:'Yeshwanthpur Toll'},
+    {id:'BLRD_041',name:'South End Circle'},
+    {id:'BLRD_055',name:'Windsor Manor Junction'},
+  ].map((n)=>{
+    const tm = getTrafficMultiplierForNode(n.name);
+    const status = tm >= 1.55 ? 'delayed' : 'online';
+    const latency = `${Math.round(8 + (tm-0.85)*120)}ms`;
+    const ping = `${Math.max(1, Math.round(1 + (tm-0.85)*5))}s ago`;
+    return { ...n, tm, status, latency, lastPing: ping };
+  });
   el.innerHTML = nodes.map(n=>`
     <tr>
       <td style="font-family:var(--mono);font-size:10px;color:var(--text-muted)">${n.id}</td>
       <td>${n.name}</td>
       <td class="${n.status==='online'?'node-online':'node-delayed'}">${n.status.toUpperCase()}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:76px;height:6px;background:rgba(255,255,255,0.08);border-radius:999px;overflow:hidden">
+            <div style="height:100%;width:${Math.round(((n.tm-0.85)/1.1)*100)}%;background:${getTrafficColor(n.tm)}"></div>
+          </div>
+          <span style="font-family:var(--mono);font-size:10px;color:${getTrafficColor(n.tm)}">${n.tm.toFixed(2)}x</span>
+        </div>
+      </td>
       <td style="font-family:var(--mono);font-size:10px;color:var(--text-muted)">${n.latency}</td>
       <td style="font-family:var(--mono);font-size:10px;color:var(--text-muted)">${n.lastPing}</td>
     </tr>`).join('');
@@ -2051,11 +2160,11 @@ window._appReady = true;
     <table class="node-table">
       <thead>
         <tr>
-          <th>Node ID</th><th>Location</th><th>Status</th><th>Latency</th><th>Last Ping</th>
+          <th>Node ID</th><th>Location</th><th>Status</th><th>Traffic</th><th>Latency</th><th>Last Ping</th>
         </tr>
       </thead>
       <tbody id="node-status-table">
-        <tr><td colspan="5" style="color:var(--text-muted);font-size:11px;padding:12px 10px">Loading node data...</td></tr>
+        <tr><td colspan="6" style="color:var(--text-muted);font-size:11px;padding:12px 10px">Loading node data...</td></tr>
       </tbody>
     </table>
   </div>
