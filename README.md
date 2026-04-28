@@ -27,10 +27,16 @@ Urban emergency vehicles lose critical minutes in congestion. AcousticGuard.ai a
 
 - `Multi-Ambulance Arbitration`:
   - Conflict-first demo flow
-  - Priority scoring based on urgency, ETA window, and overlap risk
+  - Priority scoring based on urgency, ETA window, overlap risk, and traffic density
   - Winner and rerouted path logic
   - Explainable reasoning and ETA delta display
   - Deterministic replay mode for judging/demo consistency
+
+- `Live Traffic Integration (TomTom)`:
+  - Real-time traffic flow sampling from TomTom Flow Segment API
+  - Traffic multipliers applied to ETA + conflict arbitration
+  - Dynamic congestion visualization in route rendering and node table
+  - Safe synthetic fallback when live traffic API is unavailable
 
 - `Hospital-Aware Routing`:
   - Nearest hospital ranking
@@ -53,8 +59,11 @@ Urban emergency vehicles lose critical minutes in congestion. AcousticGuard.ai a
 
 ## Project Structure
 
-- `index.html`: Full prototype app (UI + logic + simulation/inference pipeline)
+- `index.html`: Single source of truth for the full prototype app (UI + logic + inference + routing)
 - `.gitignore`: Local artifact exclusions
+
+Legacy note:
+- Older draft file `acousticguard_live(4).html` has been removed to avoid demo confusion.
 
 ## Running Locally
 
@@ -85,6 +94,6 @@ AcousticGuard.ai is designed as an emergency mobility orchestrator, not only a s
 - Stronger mobile responsiveness
 - Hardening Firebase access rules and privacy posture
 - Historical conflict history table for audits
-- Integration with live traffic APIs / edge-node telemetry
+- Edge-node telemetry beyond route probes
 - Production split into modular JS files + deployment pipeline
 
