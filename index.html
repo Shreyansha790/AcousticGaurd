@@ -577,6 +577,8 @@ let activeCrisis = null;
 let staffTasks = [];
 let crisisTimeline = [];
 let venueMapLayers = [];
+let routeGeometryCache = {};
+let corridorRenderVersion = 0;
 
 function wait(ms){ return new Promise((resolve)=>setTimeout(resolve, ms)); }
 function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
@@ -642,6 +644,40 @@ async function refreshLiveTraffic(){
   }));
   liveTrafficByNode = next;
   renderTrafficSourceBadge();
+}
+function routeCacheKey(points){
+  return points.map(([lat,lng])=>`${lat.toFixed(5)},${lng.toFixed(5)}`).join('|');
+}
+async function fetchTomTomRouteGeometry(points){
+  if(!TOMTOM_API_KEY || !Array.isArray(points) || points.length < 2) return null;
+  const clean = points.filter(p=>Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]));
+  if(clean.length < 2) return null;
+  const key = routeCacheKey(clean);
+  if(routeGeometryCache[key]) return routeGeometryCache[key];
+
+  const routePlanningLocations = clean.map(([lat,lng])=>`${lat},${lng}`).join(':');
+  const url = `https://api.tomtom.com/routing/1/calculateRoute/${routePlanningLocations}/json?traffic=true&travelMode=car&routeType=fastest&maxAlternatives=0&routeRepresentation=polyline&key=${encodeURIComponent(TOMTOM_API_KEY)}`;
+  try{
+    const res = await fetch(url);
+    if(!res.ok) throw new Error(`Route API ${res.status}`);
+    const data = await res.json();
+    const legs = data?.routes?.[0]?.legs || [];
+    const out = [];
+    legs.forEach((leg, i)=>{
+      const pts = leg?.points || [];
+      pts.forEach((p, j)=>{
+        if(i>0 && j===0) return;
+        if(Number.isFinite(p?.latitude) && Number.isFinite(p?.longitude)){
+          out.push([p.latitude, p.longitude]);
+        }
+      });
+    });
+    if(out.length > 1){
+      routeGeometryCache[key] = out;
+      return out;
+    }
+  } catch(e){}
+  return null;
 }
 function getTrafficColor(mult){
   if(mult >= 1.55) return '#FF3366';
@@ -1253,8 +1289,13 @@ function addSignalLightMarkers(path){
   signalMarkers.forEach(m => map.removeLayer(m));
   signalMarkers = [];
 
-  // Add to waypoints (not origin or destination)
-  const waypoints = path.slice(1, path.length - 1);
+  // Add only a few key waypoints (not origin/destination) to avoid visual clutter on dense road geometry.
+  const allWaypoints = path.slice(1, path.length - 1);
+  let waypoints = allWaypoints;
+  if(allWaypoints.length > 4){
+    const picks = [0.2, 0.5, 0.8].map(r=>Math.floor(allWaypoints.length * r));
+    waypoints = picks.map(i=>allWaypoints[Math.max(0, Math.min(allWaypoints.length - 1, i))]);
+  }
   waypoints.forEach((coord, i) => {
     setTimeout(() => {
       // First show red
@@ -1692,7 +1733,8 @@ async function toggleMic(){
 };
 
 // ── CORRIDOR + MAP ANIMATION ──────────────────────────────────
-function renderActiveCorridor(){
+async function renderActiveCorridor(){
+  const renderVersion = ++corridorRenderVersion;
   const arr     = Object.values(corridors).filter(c=>c.status==='active').sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   const nodesEl = document.getElementById('corridor-nodes');
 
@@ -1727,8 +1769,14 @@ function renderActiveCorridor(){
     ${bestHosp?`<span style="color:var(--text-muted)">→</span><div class="c-step" style="border-color:rgba(0,255,136,0.35)"><span class="step-name" style="color:var(--neon-green)">🏥 ${bestHosp.name}</span><span class="step-eta" style="color:var(--neon-green)">${bestHosp.beds} beds ready</span></div>`:''}
   `;
 
-  const path = [[c.origin_lat,c.origin_lng], ...nodes.map(n=>[n.lat,n.lng])];
-  if(bestHosp) path.push([bestHosp.lat,bestHosp.lng]);
+  const routePoints = [[c.origin_lat,c.origin_lng], ...nodes.map(n=>[n.lat,n.lng])];
+  if(bestHosp) routePoints.push([bestHosp.lat,bestHosp.lng]);
+  let path = routePoints;
+  const exactRoadPath = await fetchTomTomRouteGeometry(routePoints);
+  if(renderVersion !== corridorRenderVersion) return;
+  if(Array.isArray(exactRoadPath) && exactRoadPath.length > 1){
+    path = exactRoadPath;
+  }
 
   try { map.fitBounds(L.latLngBounds(path),{paddingBottomRight:[0,140],paddingTopLeft:[40,40]}); } catch(e){}
 
@@ -1931,12 +1979,7 @@ function buildVenueMedicalCorridor(route, crisis){
     lat: venue.lat - 0.0018,
     lng: venue.lng + 0.0022
   };
-  const cityJoinNode = {
-    intersection_name: route.origin.name,
-    lat: route.origin.lat,
-    lng: route.origin.lng
-  };
-  return [handoffNode, cityJoinNode, ...route.nodes];
+  return [handoffNode];
 }
 
 async function runCrisisScenario(type){
