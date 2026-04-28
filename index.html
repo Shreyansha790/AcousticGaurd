@@ -36,7 +36,7 @@
     --mono: 'JetBrains Mono', ui-monospace, monospace;
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; background: var(--bg-dark); color: var(--text-main); font-family: var(--sans); font-size: 13px; letter-spacing:0.005em; overflow: hidden; -webkit-font-smoothing:antialiased; }
+  html, body { min-height: 100%; height: auto; background: var(--bg-dark); color: var(--text-main); font-family: var(--sans); font-size: 13px; letter-spacing:0.005em; overflow-x: hidden; overflow-y: auto; -webkit-font-smoothing:antialiased; }
   body::before {
     content: ''; position: fixed; inset: 0; z-index: -1;
     background:
@@ -47,17 +47,15 @@
   ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-thumb { background: rgba(26,31,46,0.15); border-radius: 3px; } ::-webkit-scrollbar-track { background: transparent; }
 
   /* ── TOPBAR ── */
-  .topbar { display:flex; align-items:center; justify-content:space-between; padding:0 28px; height:60px; border-bottom:1px solid var(--rule); background:rgba(250,247,242,0.92); backdrop-filter:saturate(140%) blur(8px); position:sticky; top:0; z-index:200; }
-  .brand { display:flex; align-items:center; }
-  .brand-text { font-family:var(--serif); font-size:22px; font-weight:500; letter-spacing:-0.015em; color:var(--ink-900); }
-  .nav-tabs { display:flex; gap:4px; background:transparent; padding:0; border-radius:0; border:none; }
-  .nav-tab { padding:6px 14px; border-radius:2px; cursor:pointer; font-weight:500; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-500); transition:color 0.15s; border:none; border-bottom:1.5px solid transparent; }
+  .topbar { display:flex; align-items:center; justify-content:space-between; padding:0 32px; height:68px; border-bottom:1px solid var(--rule); background:rgba(250,247,242,0.94); backdrop-filter:saturate(140%) blur(10px); position:sticky; top:0; z-index:200; }
+  .brand { display:flex; align-items:baseline; }
+  .brand-text { font-family:var(--serif); font-size:23px; font-weight:500; letter-spacing:-0.018em; color:var(--ink-900); line-height:1; }
+  .nav-tabs { display:flex; gap:2px; background:transparent; padding:0; border-radius:0; border:none; }
+  .nav-tab { padding:10px 18px; border-radius:0; cursor:pointer; font-weight:500; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-500); transition:color 0.15s; border:none; border-bottom:1.5px solid transparent; line-height:1; }
   .nav-tab:hover { color:var(--ink-900); }
   .nav-tab.active { color:var(--ink-900); border-bottom-color:var(--ink-900); }
-  .topbar-right { display:flex; align-items:center; gap:18px; }
-  .clock { font-family:var(--mono); font-size:11px; color:var(--ink-500); letter-spacing:0.04em; }
-  /* Hide infra/state indicators — alert-banner already conveys system state */
-  .infra-state { display:none !important; }
+  .topbar-right { display:flex; align-items:center; gap:14px; }
+  .clock { font-family:var(--mono); font-size:11px; color:var(--ink-700); letter-spacing:0.06em; padding:0 4px; min-width:64px; text-align:center; }
   .status-pill { display:flex; align-items:center; gap:7px; padding:5px 12px; border-radius:999px; background:transparent; border:1px solid var(--neon-green); font-size:10px; font-weight:600; letter-spacing:0.12em; color:var(--neon-green); transition:all 0.2s; text-transform:uppercase; }
   .status-pill.alert    { border-color:var(--neon-red);   color:var(--neon-red);   background:rgba(177,74,58,0.04); }
   .status-pill.conflict { border-color:var(--neon-amber); color:var(--neon-amber); background:rgba(184,148,59,0.04); }
@@ -72,10 +70,10 @@
   .mic-btn.active .mic-dot { animation:pulse-dot 1s infinite; }
 
   /* ── LAYOUT ── */
-  .view-container { height:calc(100vh - 220px); display:none; overflow:hidden; }
+  .view-container { min-height:calc(100vh - 220px); height:auto; display:none; overflow:visible; }
   .view-container.active { display:grid; }
-  .layout-live      { grid-template-columns:320px 1fr 340px; grid-template-rows:auto 1fr; gap:18px; padding:18px 22px 22px; }
-  .layout-analytics { grid-template-columns:1fr; padding:36px 40px 48px; overflow-y:auto; max-width:1280px; margin:0 auto; }
+  .layout-live      { grid-template-columns:320px 1fr 340px; grid-template-rows:auto auto; gap:18px; padding:18px 22px 28px; align-items:stretch; }
+  .layout-analytics { grid-template-columns:1fr; padding:36px 40px 48px; max-width:1280px; margin:0 auto; }
 
   /* ── ALERT BANNER ── */
   .alert-banner { grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; padding:14px 22px; border-radius:4px; transition:background 0.3s ease, border-color 0.3s ease; background:#FFFFFF; border:1px solid var(--rule); border-left:3px solid var(--neon-green); box-shadow:var(--shadow-sm); }
@@ -98,10 +96,10 @@
   .alert-conf-label   { font-size:9px; color:var(--ink-500); letter-spacing:0.12em; text-transform:uppercase; text-align:center; margin-top:2px; }
 
   /* ── PANELS ── */
-  .panel { display:flex; flex-direction:column; overflow:hidden; min-height:0; }
+  .panel { display:flex; flex-direction:column; overflow:visible; min-height:0; }
   .panel-header { padding:16px 20px; border-bottom:1px solid var(--rule); display:flex; justify-content:space-between; align-items:center; flex-shrink:0; }
   .panel-title { font-size:11px; font-weight:600; color:var(--ink-700); letter-spacing:0.14em; text-transform:uppercase; }
-  .panel-body { padding:16px 20px 20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:14px; }
+  .panel-body { padding:16px 20px 20px; overflow:visible; flex:1; display:flex; flex-direction:column; gap:14px; }
   .sub-tabs { display:flex; gap:18px; flex-shrink:0; }
   .sub-tab { font-size:10px; font-weight:600; color:var(--ink-500); cursor:pointer; padding-bottom:4px; border-bottom:1.5px solid transparent; letter-spacing:0.12em; text-transform:uppercase; transition:color 0.15s; }
   .sub-tab:hover { color:var(--ink-900); }
@@ -123,7 +121,7 @@
   .conflict-card { background:#FFFFFF; border:1px solid var(--rule); border-left:3px solid var(--neon-amber); border-radius:3px; padding:14px; }
 
   /* ── MAP ── */
-  .map-area { position:relative; border-radius:4px; overflow:hidden; border:1px solid var(--rule); background:#FFFFFF; box-shadow:var(--shadow-sm); }
+  .map-area { position:sticky; top:80px; border-radius:4px; overflow:hidden; border:1px solid var(--rule); background:#FFFFFF; box-shadow:var(--shadow-sm); min-height:560px; height:calc(100vh - 260px); max-height:780px; align-self:start; }
   #leaflet-map { width:100%; height:100%; }
   .custom-marker { background:transparent; border:none; font-size:22px; display:flex; align-items:center; justify-content:center; }
 
@@ -256,26 +254,29 @@
   .report-btn:hover { opacity:0.85; }
 
   /* Modal */
-  .modal-overlay { display:none; position:fixed; inset:0; z-index:500; background:rgba(26,31,46,0.45); backdrop-filter:blur(4px); align-items:center; justify-content:center; }
+  .modal-overlay { display:none; position:fixed; inset:0; z-index:500; background:rgba(26,31,46,0.55); backdrop-filter:blur(6px); padding:40px 24px; overflow-y:auto; /* safe-center prevents the top from clipping when content > viewport */ align-items:safe center; justify-content:safe center; }
   .modal-overlay.visible { display:flex; }
-  .report-card { background:#FFFFFF; border:1px solid var(--rule); border-radius:4px; padding:32px; max-width:560px; width:90%; animation:modal-in 0.25s ease; box-shadow:0 20px 50px rgba(26,31,46,0.18); color:var(--ink-900); }
+  .report-card { background:#FFFFFF; border:1px solid var(--rule); border-radius:6px; padding:0; max-width:580px; width:100%; max-height:calc(100vh - 80px); display:flex; flex-direction:column; overflow:hidden; animation:modal-in 0.25s ease; box-shadow:0 24px 60px rgba(26,31,46,0.30); color:var(--ink-900); margin:auto; }
   @keyframes modal-in { from{transform:translateY(12px);opacity:0}to{transform:translateY(0);opacity:1} }
-  .report-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
-  .report-title  { font-family:var(--serif); font-size:22px; font-weight:500; letter-spacing:-0.01em; color:var(--ink-900); }
-  .report-close  { background:none; border:none; color:var(--ink-500); cursor:pointer; font-size:18px; padding:4px; }
-  .report-close:hover { color:var(--ink-900); }
-  .report-meta   { font-size:10px; color:var(--ink-500); margin-bottom:18px; font-family:var(--mono); letter-spacing:0.04em; }
+  .report-header { display:flex; align-items:center; justify-content:space-between; padding:22px 28px 16px; border-bottom:1px solid var(--rule-soft); flex-shrink:0; gap:16px; }
+  .report-title  { font-family:var(--serif); font-size:22px; font-weight:500; letter-spacing:-0.01em; color:var(--ink-900); line-height:1.25; }
+  .report-close  { background:var(--ink-900); border:1px solid var(--ink-900); color:#FAF7F2; cursor:pointer; font-size:14px; width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:opacity 0.15s; line-height:1; }
+  .report-close:hover { opacity:0.85; }
+  .report-scroll { padding:20px 28px 24px; overflow-y:auto; flex:1; min-height:0; }
+  .report-meta   { font-size:10px; color:var(--ink-500); margin-bottom:14px; font-family:var(--mono); letter-spacing:0.04em; }
   .report-section{ margin-bottom:18px; }
   .report-section-title { font-size:9px; font-weight:600; color:var(--ink-500); letter-spacing:0.14em; text-transform:uppercase; margin-bottom:10px; }
-  .report-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--rule-soft); font-size:12px; color:var(--ink-700); }
+  .report-row { display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid var(--rule-soft); font-size:12px; color:var(--ink-700); }
+  .report-row > span:last-child { text-align:right; }
   .report-val { font-family:var(--mono); color:var(--ink-900); font-weight:500; letter-spacing:0.02em; }
-  .report-insight { background:#FAF7F2; border:1px solid var(--rule-soft); border-left:3px solid var(--neon-blue); border-radius:2px; padding:14px 16px; font-size:12px; color:var(--ink-700); line-height:1.65; margin-top:16px; }
+  .report-insight { background:#FAF7F2; border:1px solid var(--rule-soft); border-left:3px solid var(--neon-blue); border-radius:2px; padding:14px 16px; font-size:12px; color:var(--ink-700); line-height:1.65; margin-top:14px; }
   .report-insight strong { color:var(--ink-900); font-weight:600; }
-  .report-footer { display:flex; gap:10px; margin-top:20px; }
+  .report-footer { display:flex; gap:10px; padding:16px 28px; border-top:1px solid var(--rule-soft); background:#FAF7F2; flex-shrink:0; }
   .report-action { flex:1; padding:11px; border-radius:2px; font-size:11px; font-weight:600; cursor:pointer; border:1px solid transparent; text-align:center; letter-spacing:0.1em; text-transform:uppercase; font-family:var(--sans); transition:opacity 0.15s; }
   .report-action:hover { opacity:0.85; }
   .report-primary   { background:var(--ink-900); color:#FAF7F2; border-color:var(--ink-900); }
   .report-secondary { background:transparent; color:var(--ink-700); border-color:var(--rule); }
+  .report-secondary:hover { border-color:var(--ink-900); color:var(--ink-900); opacity:1; }
 
   /* ── FULLSCREEN ALERT OVERLAY (restrained) ── */
   #alert-overlay {
@@ -2757,12 +2758,10 @@ if('serviceWorker' in navigator){
       <span class="mic-dot"></span> Live Mic
     </button>
     <button class="info-btn" onclick="openMethodModal()">Method &amp; Safety</button>
-    <!-- State indicators kept in DOM but hidden so JS hooks (renderInfraBadges,
-         renderTrafficSourceBadge, renderDetections) don't need null guards. -->
-    <div class="traffic-badge fallback infra-state" id="firebase-source-badge"></div>
-    <div class="traffic-badge fallback infra-state" id="engine-source-badge"></div>
-    <div class="traffic-badge fallback infra-state" id="traffic-source-badge"></div>
-    <div class="status-pill infra-state" id="status-pill"><span class="dot"></span></div>
+    <!-- status-pill is referenced by renderDetections / runCrisisScenario;
+         keep it in the DOM but hide via inline style (className gets
+         overwritten by JS, inline style does not). -->
+    <div class="status-pill" id="status-pill" style="display:none"><span class="dot"></span></div>
   </div>
 </div>
 
@@ -3044,36 +3043,39 @@ if('serviceWorker' in navigator){
   <div class="report-card">
     <div class="report-header">
       <div class="report-title">AcousticGuard Hospitality Crisis Report</div>
-      <button class="report-close" onclick="closeReport()">✕</button>
+      <button class="report-close" onclick="closeReport()" aria-label="Close">✕</button>
     </div>
-    <div class="report-meta" id="report-date">Generated: --</div>
+    <div class="report-scroll">
+      <div class="report-meta" id="report-date">Generated: --</div>
 
-    <div class="report-section">
-      <div class="report-section-title">System Performance</div>
-      <div class="report-row"><span>Total detections handled</span><span class="report-val" id="report-total">--</span></div>
-      <div class="report-row"><span>Events resolved</span><span class="report-val" id="report-resolved">--</span></div>
-      <div class="report-row"><span>False positives filtered</span><span class="report-val" id="report-fp-count">--</span></div>
-      <div class="report-row"><span>Average AI confidence</span><span class="report-val" id="report-conf">--</span></div>
-      <div class="report-row"><span>Venue crisis type</span><span class="report-val" id="report-crisis-type">--</span></div>
-      <div class="report-row"><span>Staff tasks assigned</span><span class="report-val" id="report-staff-tasks">--</span></div>
-    </div>
+      <div class="report-section">
+        <div class="report-section-title">System Performance</div>
+        <div class="report-row"><span>Total detections handled</span><span class="report-val" id="report-total">--</span></div>
+        <div class="report-row"><span>Events resolved</span><span class="report-val" id="report-resolved">--</span></div>
+        <div class="report-row"><span>False positives filtered</span><span class="report-val" id="report-fp-count">--</span></div>
+        <div class="report-row"><span>Average AI confidence</span><span class="report-val" id="report-conf">--</span></div>
+        <div class="report-row"><span>Venue crisis type</span><span class="report-val" id="report-crisis-type">--</span></div>
+        <div class="report-row"><span>Staff tasks assigned</span><span class="report-val" id="report-staff-tasks">--</span></div>
+      </div>
 
-    <div class="report-section">
-      <div class="report-section-title">Hospitality Impact</div>
-      <div class="report-row"><span>Total response time saved</span><span class="report-val" id="report-minsaved">--</span></div>
-      <div class="report-row"><span>Critical bottleneck flagged</span><span class="report-val" id="report-hotspot">--</span></div>
-      <div class="report-row"><span>Guests accounted / safe-zone progress</span><span class="report-val" id="report-guests">--</span></div>
-      <div class="report-row"><span>Responder entry gate</span><span class="report-val" id="report-gate">--</span></div>
-      <div class="report-row"><span>Infrastructure recommendation</span><span class="report-val" style="color:var(--neon-amber)">Signal Priority Upgrade</span></div>
-    </div>
+      <div class="report-section">
+        <div class="report-section-title">Hospitality Impact</div>
+        <div class="report-row"><span>Total response time saved</span><span class="report-val" id="report-minsaved">--</span></div>
+        <div class="report-row"><span>Critical bottleneck flagged</span><span class="report-val" id="report-hotspot">--</span></div>
+        <div class="report-row"><span>Guests accounted / safe-zone progress</span><span class="report-val" id="report-guests">--</span></div>
+        <div class="report-row"><span>Responder entry gate</span><span class="report-val" id="report-gate">--</span></div>
+        <div class="report-row"><span>Infrastructure recommendation</span><span class="report-val" style="color:var(--neon-amber)">Signal Priority Upgrade</span></div>
+      </div>
 
-    <div class="report-insight">
-      <span id="report-insight-text">Generating insight...</span>
+      <div class="report-insight">
+        <span id="report-insight-text">Generating insight...</span>
+      </div>
     </div>
 
     <div class="report-footer">
-      <button class="report-action report-primary"   onclick="closeReport()">✓ Acknowledge</button>
+      <button class="report-action report-secondary" onclick="closeReport()">Close</button>
       <button class="report-action report-secondary" onclick="exportReportPdf()">Export PDF</button>
+      <button class="report-action report-primary"   onclick="closeReport()">Acknowledge</button>
     </div>
   </div>
 </div>
@@ -3082,37 +3084,39 @@ if('serviceWorker' in navigator){
   <div class="report-card">
     <div class="report-header">
       <div class="report-title">Methods, Safety, and Deployment Notes</div>
-      <button class="report-close" onclick="closeMethodModal()">âœ•</button>
+      <button class="report-close" onclick="closeMethodModal()" aria-label="Close">✕</button>
     </div>
-    <div class="report-meta">For hackathon review and technical due diligence</div>
+    <div class="report-scroll">
+      <div class="report-meta">For hackathon review and technical due diligence</div>
 
-    <div class="report-section">
-      <div class="report-section-title">Model and Inference</div>
-      <div class="report-row"><span>Audio classifier</span><span class="report-val">TensorFlow.js + YAMNet</span></div>
-      <div class="report-row"><span>Inference mode</span><span class="report-val">Browser mic stream</span></div>
-      <div class="report-row"><span>Reliability mode</span><span class="report-val">YAMNet cache + fallback classifier</span></div>
-      <div class="report-row"><span>Decision output</span><span class="report-val">Confidence + explainable trace</span></div>
-    </div>
+      <div class="report-section">
+        <div class="report-section-title">Model and Inference</div>
+        <div class="report-row"><span>Audio classifier</span><span class="report-val">TensorFlow.js + YAMNet</span></div>
+        <div class="report-row"><span>Inference mode</span><span class="report-val">Browser mic stream</span></div>
+        <div class="report-row"><span>Reliability mode</span><span class="report-val">YAMNet cache + fallback classifier</span></div>
+        <div class="report-row"><span>Decision output</span><span class="report-val">Confidence + explainable trace</span></div>
+      </div>
 
-    <div class="report-section">
-      <div class="report-section-title">Security and Privacy</div>
-      <div class="report-row"><span>Secrets strategy</span><span class="report-val">Runtime override + local cache + optional firebase-config.json</span></div>
-      <div class="report-row"><span>TomTom key loading</span><span class="report-val">window var / query param / localStorage</span></div>
-      <div class="report-row"><span>Fail-safe behavior</span><span class="report-val">Local mode when Firebase unavailable</span></div>
-      <div class="report-row"><span>Data handling</span><span class="report-val">Session telemetry; no raw audio persistence</span></div>
-    </div>
+      <div class="report-section">
+        <div class="report-section-title">Security and Privacy</div>
+        <div class="report-row"><span>Secrets strategy</span><span class="report-val">Runtime override + local cache + optional firebase-config.json</span></div>
+        <div class="report-row"><span>TomTom key loading</span><span class="report-val">window var / query param / localStorage</span></div>
+        <div class="report-row"><span>Fail-safe behavior</span><span class="report-val">Local mode when Firebase unavailable</span></div>
+        <div class="report-row"><span>Data handling</span><span class="report-val">Session telemetry; no raw audio persistence</span></div>
+      </div>
 
-    <div class="report-section">
-      <div class="report-section-title">Scalability and Citations</div>
-      <div class="report-row"><span>Architecture</span><span class="report-val">Venue command + responder corridor</span></div>
-      <div class="report-row"><span>Edge path</span><span class="report-val">Python edge-node emulator bridge included</span></div>
-      <div class="report-row"><span>Traffic premise</span><span class="report-val">TomTom live flow + fallback model</span></div>
-      <div class="report-row"><span>Medical premise</span><span class="report-val">Faster emergency response survival linkage</span></div>
-    </div>
+      <div class="report-section">
+        <div class="report-section-title">Scalability and Citations</div>
+        <div class="report-row"><span>Architecture</span><span class="report-val">Venue command + responder corridor</span></div>
+        <div class="report-row"><span>Edge path</span><span class="report-val">Python edge-node emulator bridge included</span></div>
+        <div class="report-row"><span>Traffic premise</span><span class="report-val">TomTom live flow + fallback model</span></div>
+        <div class="report-row"><span>Medical premise</span><span class="report-val">Faster emergency response survival linkage</span></div>
+      </div>
 
-    <div class="report-insight">
-      This prototype demonstrates hospitality crisis coordination: venue incident detection, staff tasking,
-      guest-safe-zone routing, responder gate assignment, ambulance arbitration, and traffic-aware hospital routing.
+      <div class="report-insight">
+        This prototype demonstrates hospitality crisis coordination: venue incident detection, staff tasking,
+        guest-safe-zone routing, responder gate assignment, ambulance arbitration, and traffic-aware hospital routing.
+      </div>
     </div>
 
     <div class="report-footer">
