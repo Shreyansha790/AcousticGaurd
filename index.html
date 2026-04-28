@@ -449,9 +449,19 @@ let yamnetModel = null, yamnetLabels = [];
 let yamnetLoadPromise = null, yamnetInferenceTimer = null;
 let rawAudioBuffer = [];
 let lastSirenTriggerTs = 0;
+let classifierMode = 'yamnet'; // yamnet | fallback
+let classifierReason = '';
+let yamnetRuntimeErrors = 0;
 const YAMNET_WINDOW_SEC = 1.5;
 const YAMNET_INFER_MS = 2200;
 const SIREN_TRIGGER_COOLDOWN_MS = 16000;
+const YAMNET_LABELS_URL = 'https://storage.googleapis.com/audioset/yamnet/yamnet_class_map.csv';
+const YAMNET_MODEL_CANDIDATES = [
+  { url: 'https://tfhub.dev/google/tfjs-model/yamnet/tfjs/1', options: { fromTFHub: true } },
+  { url: 'https://tfhub.dev/google/tfjs-model/yamnet/tfjs/1/default/1/model.json?tfjs-format=file', options: {} }
+];
+const YAMNET_LOAD_TIMEOUT_MS = 20000;
+const YAMNET_MAX_RUNTIME_ERRORS = 3;
 
 // ── [NEW] PARTICLE STATE ─────────────────────────────────────
 let particles = [], particleFrame = null;
@@ -1007,6 +1017,9 @@ window.onload = () => {
   // [ENHANCEMENT #4] Resize particle canvas
   resizeParticleCanvas();
   window.addEventListener('resize', resizeParticleCanvas);
+
+  // Pre-warm model so first mic start is faster and less likely to feel broken.
+  setTimeout(()=>{ ensureYamnetReady().catch(()=>{}); }, 250);
 };
 
 // ── CLOCK ─────────────────────────────────────────────────────
@@ -1511,41 +1524,126 @@ function resampleTo16k(input, inRate){
 
 async function loadYamnetLabels(){
   if(yamnetLabels.length) return yamnetLabels;
-  const url = 'https://storage.googleapis.com/audioset/yamnet/yamnet_class_map.csv';
-  const text = await fetch(url).then(r=>r.text());
+  const res = await fetch(YAMNET_LABELS_URL, { cache: 'no-store' });
+  if(!res.ok) throw new Error(`Label map HTTP ${res.status}`);
+  const text = await res.text();
   const rows = text.trim().split('\n').slice(1);
   yamnetLabels = rows.map((line)=>{
     const parts = line.split(',');
     return (parts[2] || '').trim().toLowerCase();
   });
+  if(!yamnetLabels.length) throw new Error('Label map empty');
   return yamnetLabels;
 }
 
+function setAiStatus(text){
+  const el = document.getElementById('ai-status');
+  if(el) el.textContent = text;
+}
+
+function setClassifierFallback(reason){
+  classifierMode = 'fallback';
+  classifierReason = reason || 'YAMNet unavailable';
+  yamnetModel = null;
+  yamnetLoadPromise = null;
+  setAiStatus('FALLBACK AUDIO AI READY');
+}
+
+function withTimeout(promise, ms, tag){
+  return new Promise((resolve, reject)=>{
+    const timer = setTimeout(()=>reject(new Error(`${tag} timeout`)), ms);
+    promise.then((v)=>{ clearTimeout(timer); resolve(v); }).catch((e)=>{ clearTimeout(timer); reject(e); });
+  });
+}
+
 async function ensureYamnetReady(){
-  if(yamnetModel && yamnetLabels.length) return true;
+  if(yamnetModel && yamnetLabels.length){
+    classifierMode = 'yamnet';
+    classifierReason = '';
+    return true;
+  }
   if(yamnetLoadPromise) return yamnetLoadPromise;
   if(typeof tf === 'undefined'){
-    document.getElementById('ai-status').textContent = 'TF.JS LOAD FAILED';
+    setClassifierFallback('TF.js not loaded');
     return false;
   }
 
   yamnetLoadPromise = (async()=>{
-    document.getElementById('ai-status').textContent = 'LOADING YAMNET...';
-    yamnetModel = await tf.loadGraphModel(
-      'https://tfhub.dev/google/tfjs-model/yamnet/tfjs/1',
-      { fromTFHub: true }
-    );
-    await loadYamnetLabels();
-    document.getElementById('ai-status').textContent = 'YAMNET READY';
-    return true;
+    setAiStatus('LOADING YAMNET...');
+    try { await withTimeout(tf.ready(), 6000, 'tf.ready'); } catch(e){}
+    const errors = [];
+
+    for(let i=0; i<YAMNET_MODEL_CANDIDATES.length; i++){
+      const cand = YAMNET_MODEL_CANDIDATES[i];
+      try{
+        yamnetModel = await withTimeout(tf.loadGraphModel(cand.url, cand.options), YAMNET_LOAD_TIMEOUT_MS, `YAMNet source ${i+1}`);
+        await loadYamnetLabels();
+        classifierMode = 'yamnet';
+        classifierReason = '';
+        yamnetRuntimeErrors = 0;
+        setAiStatus('YAMNET READY');
+        return true;
+      } catch(err){
+        errors.push(err?.message || String(err));
+      }
+    }
+
+    throw new Error(errors.join(' | '));
   })().catch((err)=>{
     console.error('YAMNet load failed:', err);
-    document.getElementById('ai-status').textContent = 'YAMNET LOAD ERROR';
-    yamnetLoadPromise = null;
+    setClassifierFallback(err?.message || 'YAMNet load error');
     return false;
+  }).finally(()=>{
+    yamnetLoadPromise = null;
   });
 
   return yamnetLoadPromise;
+}
+
+function classifyRecentAudioFallback(){
+  if(!micActive || !audioCtx) return null;
+  const requiredRaw = Math.floor((audioCtx.sampleRate || 48000) * 1.2);
+  if(rawAudioBuffer.length < requiredRaw) return null;
+
+  const raw = rawAudioBuffer.slice(rawAudioBuffer.length - requiredRaw);
+  let sumSq = 0, maxAbs = 0, zc = 0;
+  let prev = raw[0] || 0;
+  for(let i=0;i<raw.length;i++){
+    const v = raw[i];
+    sumSq += v*v;
+    const av = Math.abs(v);
+    if(av > maxAbs) maxAbs = av;
+    if((v >= 0 && prev < 0) || (v < 0 && prev >= 0)) zc++;
+    prev = v;
+  }
+  const rms = Math.sqrt(sumSq / raw.length);
+  const zcrHz = zc / (2 * (raw.length / (audioCtx.sampleRate || 48000)));
+
+  const loudness = clamp((rms - 0.01) / 0.10, 0, 1);
+  const tonality = clamp((zcrHz - 650) / 1200, 0, 1);
+  const spike = clamp((maxAbs - 0.10) / 0.60, 0, 1);
+  const sirenScore = clamp((loudness * 0.45) + (tonality * 0.35) + (spike * 0.20), 0, 1);
+  const noiseScore = clamp((loudness * 0.70) + ((1 - tonality) * 0.30), 0, 1);
+  const isSiren = sirenScore >= 0.58 && rms >= 0.018;
+  const conf = Math.max(1, Math.round((isSiren ? sirenScore : noiseScore) * 100));
+
+  return {
+    isSiren,
+    confidence: conf,
+    topLabel: isSiren ? 'possible siren (fallback)' : 'ambient traffic (fallback)',
+    sirenLabel: 'fallback-siren-heuristic',
+    noiseLabel: 'fallback-noise-heuristic',
+    sirenScore,
+    noiseScore,
+    engineLabel: 'Fallback Audio AI'
+  };
+}
+
+async function classifyByActiveEngine(){
+  if(classifierMode === 'yamnet' && yamnetModel){
+    return classifyRecentAudio();
+  }
+  return classifyRecentAudioFallback();
 }
 
 function maxForKeywords(meanScores, keywords){
@@ -1605,7 +1703,8 @@ async function classifyRecentAudio(){
       sirenLabel: sirenBest.label,
       noiseLabel: noiseBest.label,
       sirenScore,
-      noiseScore
+      noiseScore,
+      engineLabel: 'YAMNet'
     };
   } finally {
     input.dispose();
@@ -1622,7 +1721,7 @@ function showYamnetDecision(result){
     ? `  └─ VERDICT: AMBULANCE/SIREN (${result.confidence}%) → ROUTING`
     : `  └─ VERDICT: ${result.topLabel} (${result.confidence}%) → REJECTED`;
   const lines = [
-    {text:'YAMNet live inference...', cls:'header', delay:0},
+    {text:`${result.engineLabel || 'YAMNet'} live inference...`, cls:'header', delay:0},
     {text:`  ├─ Top class:        ${result.topLabel}`, cls: result.isSiren ? 'pass' : 'fail', delay:220},
     {text:`  ├─ Siren score:      ${(result.sirenScore*100).toFixed(1)}%`, cls: result.sirenScore >= result.noiseScore ? 'pass' : 'fail', delay:460},
     {text:`  ├─ Noise score:      ${(result.noiseScore*100).toFixed(1)}%`, cls: result.noiseScore > result.sirenScore ? 'fail' : 'pass', delay:700},
@@ -1639,13 +1738,24 @@ function showYamnetDecision(result){
 }
 
 async function runLiveInferenceTick(){
-  if(!micActive || !yamnetModel || isAnalyzing) return;
-  const result = await classifyRecentAudio();
+  if(!micActive || isAnalyzing) return;
+  let result = null;
+  try{
+    result = await classifyByActiveEngine();
+  } catch(err){
+    console.error('Live inference error:', err);
+    yamnetRuntimeErrors++;
+    if(yamnetRuntimeErrors >= YAMNET_MAX_RUNTIME_ERRORS){
+      setClassifierFallback('YAMNet runtime failure');
+    }
+    return;
+  }
   if(!result) return;
 
   if(result.isSiren){
     document.getElementById('ai-status').textContent = `LIVE SIREN — ${result.confidence}%`;
     showYamnetDecision(result);
+    setAiStatus(`LIVE SIREN - ${result.confidence}% (${classifierMode.toUpperCase()})`);
     const now = Date.now();
     if(now - lastSirenTriggerTs > SIREN_TRIGGER_COOLDOWN_MS){
       lastSirenTriggerTs = now;
@@ -1653,6 +1763,9 @@ async function runLiveInferenceTick(){
     }
   } else {
     document.getElementById('ai-status').textContent = `LIVE NOISE — ${result.topLabel}`;
+  }
+  if(!result.isSiren){
+    setAiStatus(`LIVE NOISE - ${result.topLabel}`);
   }
 }
 
@@ -1673,21 +1786,20 @@ async function toggleMic(){
     btn.className = 'mic-btn';
     btn.innerHTML = '<span class="mic-dot"></span> LIVE MIC';
     document.getElementById('waveform-box').classList.remove('mic-active');
-    document.getElementById('ai-status').textContent = 'NODE READY';
+    setAiStatus('NODE READY');
     drawIdleWave();
     return;
   }
 
   try {
+    // Do not hard-fail mic if YAMNet cannot load; fallback classifier keeps demo alive.
     const modelReady = await ensureYamnetReady();
-    if(!modelReady){
-      btn.innerHTML = '<span class="mic-dot"></span> MODEL ERROR';
-      setTimeout(()=>{ btn.innerHTML='<span class="mic-dot"></span> LIVE MIC'; },2200);
-      return;
-    }
 
     micStream = await navigator.mediaDevices.getUserMedia({audio:true, video:false});
     audioCtx  = new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state === 'suspended'){
+      try { await audioCtx.resume(); } catch(e){}
+    }
     micSourceNode = audioCtx.createMediaStreamSource(micStream);
     analyser  = audioCtx.createAnalyser();
     analyser.fftSize = 1024;
@@ -1712,6 +1824,7 @@ async function toggleMic(){
     btn.className = 'mic-btn active';
     btn.innerHTML = '<span class="mic-dot"></span> 🎙️ LIVE';
     document.getElementById('waveform-box').classList.add('mic-active');
+    setAiStatus(modelReady ? 'YAMNET LIVE READY' : 'FALLBACK LIVE READY');
 
     if(waveDrawFrame) cancelAnimationFrame(waveDrawFrame);
 
@@ -1727,6 +1840,7 @@ async function toggleMic(){
     yamnetInferenceTimer = setInterval(()=>{ runLiveInferenceTick(); }, YAMNET_INFER_MS);
   } catch(e){
     console.error('Mic start failed:', e);
+    setAiStatus('MIC ACCESS ERROR');
     btn.innerHTML = '<span class="mic-dot"></span> MIC DENIED';
     setTimeout(()=>{ btn.innerHTML='<span class="mic-dot"></span> LIVE MIC'; },2000);
   }
@@ -1924,17 +2038,26 @@ function setBtns(disabled){
 async function runAudioSimulation(type){
   if(isAnalyzing) return;
   if(!micActive){
-    document.getElementById('ai-status').textContent = 'ENABLE LIVE MIC FIRST';
+    setAiStatus('ENABLE LIVE MIC FIRST');
     return;
   }
 
   isAnalyzing = true;
   setBtns(true);
-  document.getElementById('ai-status').textContent = 'ANALYZING...';
+  setAiStatus('ANALYZING...');
 
-  const result = await classifyRecentAudio();
+  let result = null;
+  try{
+    result = await classifyByActiveEngine();
+  } catch(err){
+    console.error('Manual inference failed:', err);
+    yamnetRuntimeErrors++;
+    if(yamnetRuntimeErrors >= YAMNET_MAX_RUNTIME_ERRORS){
+      setClassifierFallback('YAMNet runtime failure');
+    }
+  }
   if(!result){
-    document.getElementById('ai-status').textContent = 'COLLECTING AUDIO...';
+    setAiStatus('COLLECTING AUDIO...');
     isAnalyzing = false;
     setBtns(false);
     return;
@@ -1947,10 +2070,10 @@ async function runAudioSimulation(type){
 
   showYamnetDecision({ ...result, isSiren, confidence });
   if(isSiren){
-    document.getElementById('ai-status').textContent = `SIREN - ${confidence}% (${detectedLabel})`;
+    setAiStatus(`SIREN - ${confidence}% (${detectedLabel})`);
     await executePipeline();
   } else {
-    document.getElementById('ai-status').textContent = `REJECTED - ${confidence}% (${detectedLabel})`;
+    setAiStatus(`REJECTED - ${confidence}% (${detectedLabel})`);
     falsePositives.unshift({type:detectedLabel, conf:confidence, time:new Date().toLocaleTimeString()});
     document.getElementById('list-fp').innerHTML = falsePositives.map(fp=>`
       <div class="fp-card">
