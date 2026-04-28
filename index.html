@@ -9,6 +9,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script src="./runtime-config.js"></script>
 <style>
   :root {
     --neon-blue:    #3B82F6;
@@ -392,7 +393,7 @@
 import { initializeApp }                        from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
 import { getDatabase, ref, onValue, push, set } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
 
-const firebaseConfig = window.__ACOUSTICGUARD_FIREBASE_CONFIG || {
+const BUNDLED_FIREBASE_CONFIG = {
   apiKey:            "AIzaSyANNBZ3RUkvvggOnw85z4eo_FXCnAPemyg",
   authDomain:        "acousticguard.firebaseapp.com",
   databaseURL:       "https://acousticguard-default-rtdb.firebaseio.com",
@@ -402,16 +403,54 @@ const firebaseConfig = window.__ACOUSTICGUARD_FIREBASE_CONFIG || {
   appId:             "1:824703825141:web:3a623a6dd5f9ea918d41bc"
 };
 
+const FIREBASE_CONFIG_STORAGE_KEY = "acousticguard.firebase.config";
+
+function safeParseJson(text) {
+  try { return JSON.parse(text); } catch(e) { return null; }
+}
+function isFirebaseConfigObject(cfg){
+  if(!cfg || typeof cfg !== "object") return false;
+  const required = ["apiKey","authDomain","databaseURL","projectId","appId"];
+  return required.every((k)=>typeof cfg[k] === "string" && cfg[k].trim().length > 0);
+}
+async function resolveFirebaseConfig(){
+  const injected = window.__ACOUSTICGUARD_FIREBASE_CONFIG;
+  if(isFirebaseConfigObject(injected)) return { config: injected, source: "window" };
+
+  let stored = null;
+  try { stored = safeParseJson(localStorage.getItem(FIREBASE_CONFIG_STORAGE_KEY) || ""); } catch(e){}
+  if(isFirebaseConfigObject(stored)) return { config: stored, source: "localStorage" };
+
+  try{
+    const res = await fetch("./firebase-config.json", { cache: "no-store" });
+    if(res.ok){
+      const fileCfg = await res.json();
+      if(isFirebaseConfigObject(fileCfg)){
+        try { localStorage.setItem(FIREBASE_CONFIG_STORAGE_KEY, JSON.stringify(fileCfg)); } catch(e){}
+        return { config: fileCfg, source: "file" };
+      }
+    }
+  } catch(e){}
+
+  if(isFirebaseConfigObject(BUNDLED_FIREBASE_CONFIG)) return { config: BUNDLED_FIREBASE_CONFIG, source: "bundled" };
+  return { config: null, source: "none" };
+}
+
+const { config: firebaseConfig, source: firebaseConfigSource } = await resolveFirebaseConfig();
+
 let db = null;
 try {
+  if(!firebaseConfig) throw new Error("No Firebase config available");
   const app = initializeApp(firebaseConfig);
   db  = getDatabase(app);
   // Expose Firebase helpers globally so the main script can use them
   window._fb = { db, ref, onValue, push, set };
   window._fbMode = "live";
+  window._fbConfigSource = firebaseConfigSource;
 } catch (e) {
   console.error("Firebase init failed, switching to local demo mode:", e);
   window._fbMode = "local";
+  window._fbConfigSource = firebaseConfigSource;
 }
 
 // Wait for main script to be ready, then start listeners
@@ -429,6 +468,9 @@ startListeners();
 // ── MAIN APP SCRIPT (regular, not module — all functions are global) ──
 
 // ── STATE ─────────────────────────────────────────────────────
+function safeParseJson(text){
+  try { return JSON.parse(text); } catch(e) { return null; }
+}
 let map, mapLayers = [], animFrame;
 let volumeChart, confidenceChart;
 let detections = {}, corridors = {}, heatmap = {};
@@ -460,6 +502,7 @@ const YAMNET_MODEL_CANDIDATES = [
   { url: 'https://tfhub.dev/google/tfjs-model/yamnet/tfjs/1', options: { fromTFHub: true } },
   { url: 'https://tfhub.dev/google/tfjs-model/yamnet/tfjs/1/default/1/model.json?tfjs-format=file', options: {} }
 ];
+const YAMNET_LABELS_CACHE_KEY = 'acousticguard.yamnet.labels.v1';
 const YAMNET_LOAD_TIMEOUT_MS = 20000;
 const YAMNET_MAX_RUNTIME_ERRORS = 3;
 
@@ -490,7 +533,24 @@ const ROUTES = [
 
 let latestConflictInsight = null;
 const TRAFFIC_NODES = ['Silk Board Junction','Marathahalli Bridge','Mekhri Circle','Indiranagar 100ft Rd','Yeshwanthpur Toll','South End Circle','Windsor Manor Junction','Domlur Flyover','Koramangala 5th Block','St. Johns Junction','HAL Gate Junction','Sadashivanagar Cross','MS Ramaiah Junction','Govardhan Theater','Columbia Asia Junction','Jayanagar 4th Block','Bannerghatta Main Rd','Hebbal Flyover'];
-const TOMTOM_API_KEY = window.__ACOUSTICGUARD_TOMTOM_KEY || 'b7HCHyABv9QuAUtV8HUcVzwudCtYlLYR';
+const TOMTOM_STORAGE_KEY = 'acousticguard.tomtom.key';
+function resolveTomTomApiKey(){
+  const injected = window.__ACOUSTICGUARD_TOMTOM_KEY || '';
+  if(injected){
+    try { localStorage.setItem(TOMTOM_STORAGE_KEY, injected); } catch(e){}
+    return injected;
+  }
+  try{
+    const qKey = new URLSearchParams(window.location.search).get('tomtomKey');
+    if(qKey){
+      localStorage.setItem(TOMTOM_STORAGE_KEY, qKey);
+      return qKey;
+    }
+  } catch(e){}
+  try { return localStorage.getItem(TOMTOM_STORAGE_KEY) || ''; } catch(e){}
+  return '';
+}
+const TOMTOM_API_KEY = resolveTomTomApiKey();
 let liveTrafficByNode = {};
 let lastTrafficSyncAt = 0;
 const TRAFFIC_SYNC_MS = 120000;
@@ -790,14 +850,36 @@ function applyVenueDataFromDb(){
   renderVenueCrisisMarkers();
 }
 function getTrafficSourceLabel(){
+  if(!TOMTOM_API_KEY) return 'No Key';
   return Object.keys(liveTrafficByNode).length ? 'TomTom Live' : 'Fallback';
 }
 function renderTrafficSourceBadge(){
   const el = document.getElementById('traffic-source-badge');
   if(!el) return;
+  if(!TOMTOM_API_KEY){
+    el.className = 'traffic-badge fallback';
+    el.textContent = 'Live Traffic: No Key';
+    return;
+  }
   const live = Object.keys(liveTrafficByNode).length > 0;
   el.className = live ? 'traffic-badge' : 'traffic-badge fallback';
   el.textContent = live ? 'Live Traffic: TomTom' : 'Live Traffic: Fallback';
+}
+function renderInfraBadges(){
+  const fbEl = document.getElementById('firebase-source-badge');
+  if(fbEl){
+    const live = window._fbMode === 'live';
+    fbEl.className = live ? 'traffic-badge' : 'traffic-badge fallback';
+    const src = window._fbConfigSource || 'none';
+    fbEl.textContent = live ? `Firebase: Live (${src})` : 'Firebase: Local Fallback';
+  }
+
+  const aiEl = document.getElementById('engine-source-badge');
+  if(aiEl){
+    const live = classifierMode === 'yamnet';
+    aiEl.className = live ? 'traffic-badge' : 'traffic-badge fallback';
+    aiEl.textContent = live ? 'AI Engine: YAMNet' : 'AI Engine: Fallback';
+  }
 }
 function timelineStamp(){
   return new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false});
@@ -1002,6 +1084,7 @@ window.onload = () => {
   renderHospitalPanel(null);
   updateConflictBrief(null);
   renderTrafficSourceBadge();
+  renderInfraBadges();
   renderHospitalityCommand();
   renderVenueCrisisMarkers();
   refreshLiveTraffic().catch(()=>{});
@@ -1017,6 +1100,9 @@ window.onload = () => {
   // [ENHANCEMENT #4] Resize particle canvas
   resizeParticleCanvas();
   window.addEventListener('resize', resizeParticleCanvas);
+
+  // Warm critical AI assets in browser cache for flaky demo networks.
+  prefetchYamnetAssets();
 
   // Pre-warm model so first mic start is faster and less likely to feel broken.
   setTimeout(()=>{ ensureYamnetReady().catch(()=>{}); }, 250);
@@ -1100,8 +1186,10 @@ window._startFirebase = function(db, ref, onValue, push, set){
     if(alertSub){
       alertSub.textContent = 'Running offline simulation mode. Data persists only for this session.';
     }
+    renderInfraBadges();
   } else {
     _db = db; _ref = ref; _onValue = onValue; _push = push; _set = set;
+    renderInfraBadges();
   }
 
   _onValue(_ref(_db,'detections'), snap=>{ detections=snap.val()||{}; renderDetections(); updateStats(); });
@@ -1524,15 +1612,33 @@ function resampleTo16k(input, inRate){
 
 async function loadYamnetLabels(){
   if(yamnetLabels.length) return yamnetLabels;
-  const res = await fetch(YAMNET_LABELS_URL, { cache: 'no-store' });
-  if(!res.ok) throw new Error(`Label map HTTP ${res.status}`);
-  const text = await res.text();
-  const rows = text.trim().split('\n').slice(1);
-  yamnetLabels = rows.map((line)=>{
-    const parts = line.split(',');
-    return (parts[2] || '').trim().toLowerCase();
+  try{
+    const res = await fetch(YAMNET_LABELS_URL, { cache: 'force-cache' });
+    if(!res.ok) throw new Error(`Label map HTTP ${res.status}`);
+    const text = await res.text();
+    const rows = text.trim().split('\n').slice(1);
+    yamnetLabels = rows.map((line)=>{
+      const parts = line.split(',');
+      return (parts[2] || '').trim().toLowerCase();
+    });
+    if(!yamnetLabels.length) throw new Error('Label map empty');
+    try { localStorage.setItem(YAMNET_LABELS_CACHE_KEY, JSON.stringify(yamnetLabels)); } catch(e){}
+    return yamnetLabels;
+  } catch(err){
+    const cached = safeParseJson(localStorage.getItem(YAMNET_LABELS_CACHE_KEY) || '[]');
+    if(Array.isArray(cached) && cached.length){
+      yamnetLabels = cached;
+      return yamnetLabels;
+    }
+    throw err;
+  }
+}
+
+function prefetchYamnetAssets(){
+  const urls = [YAMNET_LABELS_URL, ...YAMNET_MODEL_CANDIDATES.map((c)=>c.url)];
+  urls.forEach((url)=>{
+    fetch(url, { cache: 'force-cache' }).catch(()=>{});
   });
-  if(!yamnetLabels.length) throw new Error('Label map empty');
   return yamnetLabels;
 }
 
@@ -1547,6 +1653,7 @@ function setClassifierFallback(reason){
   yamnetModel = null;
   yamnetLoadPromise = null;
   setAiStatus('FALLBACK AUDIO AI READY');
+  renderInfraBadges();
 }
 
 function withTimeout(promise, ms, tag){
@@ -1582,6 +1689,7 @@ async function ensureYamnetReady(){
         classifierReason = '';
         yamnetRuntimeErrors = 0;
         setAiStatus('YAMNET READY');
+        renderInfraBadges();
         return true;
       } catch(err){
         errors.push(err?.message || String(err));
@@ -2404,6 +2512,53 @@ function generateReport(){
   document.getElementById('report-modal').classList.add('visible');
 };
 function closeReport(){ document.getElementById('report-modal').classList.remove('visible'); }
+function exportReportPdf(){
+  // Ensure latest numbers are in the report before exporting.
+  generateReport();
+  const card = document.querySelector('#report-modal .report-card');
+  if(!card) return;
+
+  const win = window.open('', '_blank', 'noopener,noreferrer,width=980,height=760');
+  if(!win){
+    setAiStatus('POPUP BLOCKED - ALLOW EXPORT WINDOW');
+    return;
+  }
+
+  const reportDate = document.getElementById('report-date')?.textContent || '';
+  const body = card.cloneNode(true);
+  body.querySelectorAll('button').forEach((b)=>b.remove());
+  const html = `
+    <!doctype html>
+    <html>
+    <head>
+      <meta charset="utf-8"/>
+      <title>AcousticGuard Hospitality Crisis Report</title>
+      <style>
+        body{font-family:Arial,sans-serif;background:#fff;color:#111;padding:24px}
+        .report-card{max-width:860px;margin:0 auto;border:1px solid #e5e7eb;border-radius:12px;padding:22px}
+        .report-title{font-size:22px;font-weight:700;margin-bottom:6px}
+        .report-meta{font-size:12px;color:#4b5563;margin-bottom:14px}
+        .report-section{margin:14px 0}
+        .report-section-title{font-size:12px;font-weight:700;color:#0f766e;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+        .report-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f1f5f9;font-size:13px}
+        .report-val{font-weight:700}
+        .report-insight{margin-top:14px;padding:12px;border:1px solid #dbeafe;background:#eff6ff;border-radius:8px;font-size:13px;line-height:1.5}
+      </style>
+    </head>
+    <body>
+      <div class="report-card">
+        <div class="report-title">AcousticGuard Hospitality Crisis Report</div>
+        <div class="report-meta">${reportDate}</div>
+        ${body.innerHTML}
+      </div>
+      <script>window.onload=()=>setTimeout(()=>window.print(),250);</script>
+    </body>
+    </html>`;
+
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+}
 function openMethodModal(){ document.getElementById('method-modal').classList.add('visible'); }
 function closeMethodModal(){ document.getElementById('method-modal').classList.remove('visible'); }
 
@@ -2568,6 +2723,8 @@ window._appReady = true;
       <span class="mic-dot"></span> LIVE MIC
     </button>
     <button class="info-btn" onclick="openMethodModal()">Method &amp; Safety</button>
+    <div class="traffic-badge fallback" id="firebase-source-badge">Firebase: Checking...</div>
+    <div class="traffic-badge fallback" id="engine-source-badge">AI Engine: Checking...</div>
     <div class="traffic-badge fallback" id="traffic-source-badge">Live Traffic: Fallback</div>
     <div class="status-pill" id="status-pill"><span class="dot"></span> LISTENING</div>
   </div>
@@ -2880,7 +3037,7 @@ window._appReady = true;
 
     <div class="report-footer">
       <button class="report-action report-primary"   onclick="closeReport()">✓ Acknowledge</button>
-      <button class="report-action report-secondary" onclick="closeReport()">Export PDF</button>
+      <button class="report-action report-secondary" onclick="exportReportPdf()">Export PDF</button>
     </div>
   </div>
 </div>
@@ -2897,12 +3054,14 @@ window._appReady = true;
       <div class="report-section-title">Model and Inference</div>
       <div class="report-row"><span>Audio classifier</span><span class="report-val">TensorFlow.js + YAMNet</span></div>
       <div class="report-row"><span>Inference mode</span><span class="report-val">Browser mic stream</span></div>
+      <div class="report-row"><span>Reliability mode</span><span class="report-val">YAMNet cache + fallback classifier</span></div>
       <div class="report-row"><span>Decision output</span><span class="report-val">Confidence + explainable trace</span></div>
     </div>
 
     <div class="report-section">
       <div class="report-section-title">Security and Privacy</div>
-      <div class="report-row"><span>Secrets strategy</span><span class="report-val">Runtime config override supported</span></div>
+      <div class="report-row"><span>Secrets strategy</span><span class="report-val">Runtime override + local cache + optional firebase-config.json</span></div>
+      <div class="report-row"><span>TomTom key loading</span><span class="report-val">window var / query param / localStorage</span></div>
       <div class="report-row"><span>Fail-safe behavior</span><span class="report-val">Local mode when Firebase unavailable</span></div>
       <div class="report-row"><span>Data handling</span><span class="report-val">Session telemetry; no raw audio persistence</span></div>
     </div>
@@ -2910,6 +3069,7 @@ window._appReady = true;
     <div class="report-section">
       <div class="report-section-title">Scalability and Citations</div>
       <div class="report-row"><span>Architecture</span><span class="report-val">Venue command + responder corridor</span></div>
+      <div class="report-row"><span>Edge path</span><span class="report-val">Python edge-node emulator bridge included</span></div>
       <div class="report-row"><span>Traffic premise</span><span class="report-val">TomTom live flow + fallback model</span></div>
       <div class="report-row"><span>Medical premise</span><span class="report-val">Faster emergency response survival linkage</span></div>
     </div>

@@ -58,6 +58,7 @@ The build currently supports:
 - Firebase Realtime Database integration
 - Local in-memory fallback when Firebase is unavailable
 - Crisis/detection/corridor records maintained for dashboard + analytics
+- Edge-node emulator bridge path for non-browser telemetry publishing
 
 ## 6) Technical Stack
 - Frontend: `HTML`, `CSS`, `JavaScript` (single-file app in `index.html`)
@@ -90,6 +91,8 @@ The app tracks (directly or effectively) these entities:
 ## 9) AI Reliability Design (Important)
 To avoid pipeline breakage:
 - YAMNet load has retry strategy with alternate source format.
+- YAMNet labels are cached for reuse if network fetch fails.
+- Critical YAMNet assets are prefetched for better demo reliability.
 - Load timeout and runtime error guards are active.
 - If model loading/execution fails, app automatically switches to fallback inference.
 - Mic flow remains usable even during model/CDN failure.
@@ -112,6 +115,7 @@ To avoid pipeline breakage:
 - `index.html` -> full application logic/UI/data flow
 - `README.md` -> project overview and run guide
 - `PROJECT_UNDERSTANDING.md` -> this complete understanding document
+- `edge_node/edge_sensor_bridge.py` -> backend/edge telemetry emulator
 
 ## 12) Local Run
 Use:
@@ -144,7 +148,6 @@ Then open:
 - Multi-tenant auth and role-based controls are not yet implemented
 
 ## 16) Immediate Next Upgrades
-- Add explicit `Inference Engine: YAMNet/Fallback` badge in UI
 - Add one-click `Demo Reset` action
 - Add hospitality KPI cards: detection-to-dispatch, zone-clearance time, ETA saved
 - Improve mobile responsiveness for narrower screens

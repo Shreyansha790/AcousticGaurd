@@ -17,6 +17,7 @@ This repository is currently a **working hackathon demo build** with:
   - Primary: TensorFlow.js + YAMNet
   - Fallback: in-browser heuristic classifier when model/CDN fails
 - Firebase Realtime Database integration plus local fallback when Firebase/network is unavailable
+- Edge-node emulator bridge (`edge_node/`) to demonstrate non-browser telemetry ingestion path
 
 ## How It Fits The Challenge
 
@@ -44,6 +45,7 @@ Hospitality venues face fast-moving incidents where information is often fragmen
 - `Real AI Audio Detection`:
   - Live mic capture in browser
   - TensorFlow.js + YAMNet-based sound classification
+  - YAMNet prefetch + cached label fallback for weak demo networks
   - Auto-fallback classifier to prevent pipeline breakage if YAMNet cannot load
   - Siren/noise confidence scoring with decision trace
 
@@ -71,6 +73,7 @@ Hospitality venues face fast-moving incidents where information is often fragmen
   - Confidence distribution
   - Response time saved
   - Staff tasks, guest-safe-zone progress, responder gate, and crisis narrative
+  - Export-to-PDF action (printable report view)
 
 ## Tech Stack
 
@@ -86,6 +89,32 @@ Hospitality venues face fast-moving incidents where information is often fragmen
 - `index.html`: Single source of truth for the full prototype app
 - `.gitignore`: Local artifact exclusions
 - `PROJECT_UNDERSTANDING.md`: Full project understanding and implementation status document
+- `runtime-config.js`: Runtime secrets/config override stub (safe defaults)
+- `firebase-config.example.json`: Example Firebase web config template
+- `edge_node/`: Edge telemetry emulator bridge (Python + Firebase Admin SDK)
+
+## Runtime Configuration
+
+You can provide live infra credentials in three ways:
+
+1. `runtime-config.js` (recommended for local demo)
+2. `firebase-config.json` (optional file; use `firebase-config.example.json` as template)
+3. Browser `localStorage` / query param (`?tomtomKey=...`) for quick testing
+
+By default:
+- Firebase attempts live init and falls back to local mode if unavailable
+- TomTom runs fallback traffic mode if no key is provided
+
+## Edge Backend Emulator (Phase 2 Readiness)
+
+To demonstrate non-browser telemetry ingestion:
+
+```bash
+pip install -r edge_node/requirements.txt
+python edge_node/edge_sensor_bridge.py --service-account "C:/path/to/service-account.json" --database-url "https://your-project-default-rtdb.firebaseio.com"
+```
+
+This publishes edge heartbeats + detection events to Firebase so judges can see a realistic backend/edge integration path.
 
 ## Running Locally
 
@@ -112,6 +141,6 @@ Then open:
 ## Important Notes
 
 - This is a hackathon prototype, not a certified emergency-service or medical device.
-- The exposed TomTom key should be rotated after demos/submission.
+- Do not commit real API keys/service-account secrets to public repos.
 - If Firebase or TomTom is unavailable, the app stays usable through local/demo fallback paths.
 - If YAMNet model fetch fails (network/CDN), the mic pipeline continues using fallback inference mode.

@@ -1,2 +1,6 @@
 .codex_tmp_pdf_pages/
+firebase-config.json
+runtime-config.local.js
+*.adminsdk-*.json
+*service-account*.json
 
