@@ -47,17 +47,17 @@
   ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-thumb { background: rgba(26,31,46,0.15); border-radius: 3px; } ::-webkit-scrollbar-track { background: transparent; }
 
   /* ── TOPBAR ── */
-  .topbar { display:flex; align-items:center; justify-content:space-between; padding:0 32px; height:64px; border-bottom:1px solid var(--rule); background:rgba(250,247,242,0.92); backdrop-filter:saturate(140%) blur(8px); position:sticky; top:0; z-index:200; }
-  .brand { display:flex; align-items:center; gap:14px; }
-  .brand-icon { width:32px; height:32px; border-radius:50%; background:var(--ink-900); display:flex; align-items:center; justify-content:center; font-family:var(--serif); font-size:15px; font-weight:600; color:#FAF7F2; }
-  .brand-text { font-family:var(--serif); font-size:20px; font-weight:500; letter-spacing:-0.01em; color:var(--ink-900); }
-  .brand-text span { font-style:italic; color:var(--neon-red); }
+  .topbar { display:flex; align-items:center; justify-content:space-between; padding:0 28px; height:60px; border-bottom:1px solid var(--rule); background:rgba(250,247,242,0.92); backdrop-filter:saturate(140%) blur(8px); position:sticky; top:0; z-index:200; }
+  .brand { display:flex; align-items:center; }
+  .brand-text { font-family:var(--serif); font-size:22px; font-weight:500; letter-spacing:-0.015em; color:var(--ink-900); }
   .nav-tabs { display:flex; gap:4px; background:transparent; padding:0; border-radius:0; border:none; }
   .nav-tab { padding:6px 14px; border-radius:2px; cursor:pointer; font-weight:500; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-500); transition:color 0.15s; border:none; border-bottom:1.5px solid transparent; }
   .nav-tab:hover { color:var(--ink-900); }
   .nav-tab.active { color:var(--ink-900); border-bottom-color:var(--ink-900); }
-  .topbar-right { display:flex; align-items:center; gap:14px; }
-  .clock { font-family:var(--mono); font-size:11px; color:var(--ink-500); letter-spacing:0.02em; }
+  .topbar-right { display:flex; align-items:center; gap:18px; }
+  .clock { font-family:var(--mono); font-size:11px; color:var(--ink-500); letter-spacing:0.04em; }
+  /* Hide infra/state indicators — alert-banner already conveys system state */
+  .infra-state { display:none !important; }
   .status-pill { display:flex; align-items:center; gap:7px; padding:5px 12px; border-radius:999px; background:transparent; border:1px solid var(--neon-green); font-size:10px; font-weight:600; letter-spacing:0.12em; color:var(--neon-green); transition:all 0.2s; text-transform:uppercase; }
   .status-pill.alert    { border-color:var(--neon-red);   color:var(--neon-red);   background:rgba(177,74,58,0.04); }
   .status-pill.conflict { border-color:var(--neon-amber); color:var(--neon-amber); background:rgba(184,148,59,0.04); }
@@ -318,7 +318,6 @@
   .loc-acc    { font-size:9px; color:var(--ink-500); margin-top:6px; }
   .loc-nearest{ font-size:10px; color:var(--ink-700); margin-top:8px; padding-top:8px; border-top:1px solid var(--rule-soft); line-height:1.65; }
 
-  .theme-badge { font-family:var(--serif); font-style:italic; font-size:11px; font-weight:500; color:var(--ink-700); border:none; background:transparent; padding:0 0 0 12px; border-left:1px solid var(--rule); margin-left:4px; letter-spacing:0; text-transform:none; }
   .proof-strip { margin:20px 22px 0; display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
   .proof-card { background:#FFFFFF; border:1px solid var(--rule); border-radius:3px; padding:16px 18px; box-shadow:var(--shadow-sm); }
   .proof-title { font-size:10px; font-weight:600; color:var(--ink-500); text-transform:uppercase; letter-spacing:0.14em; margin-bottom:10px; }
@@ -1109,7 +1108,7 @@ window.onload = () => {
 };
 
 // ── CLOCK ─────────────────────────────────────────────────────
-setInterval(()=>{ document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-IN',{hour12:false})+' IST'; },1000);
+setInterval(()=>{ document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-IN',{hour12:false}); },1000);
 
 function timeAgo(iso){
   const s=Math.floor((Date.now()-new Date(iso))/1000);
@@ -2743,9 +2742,7 @@ if('serviceWorker' in navigator){
 
 <div class="topbar">
   <div class="brand">
-    <div class="brand-icon">⚡</div>
-    <div class="brand-text">Acoustic<span>Guard</span>.ai</div>
-    <span class="theme-badge">Hospitality Rapid Crisis Response</span>
+    <div class="brand-text">AcousticGuard</div>
   </div>
   <div class="nav-tabs">
     <div class="nav-tab active" id="tab-live"      onclick="switchTab('live')">Live Dashboard</div>
@@ -2753,18 +2750,19 @@ if('serviceWorker' in navigator){
   </div>
   <div class="topbar-right">
     <button class="loc-btn" id="loc-btn" onclick="toggleLocation()">
-      <span class="loc-dot"></span> MY LOCATION
+      <span class="loc-dot"></span> My Location
     </button>
-    <span class="clock" id="clock">--:--:-- IST</span>
-    <!-- [ENHANCEMENT #2] Live Mic button -->
+    <span class="clock" id="clock">--:--:--</span>
     <button class="mic-btn" id="mic-btn" onclick="toggleMic()">
-      <span class="mic-dot"></span> LIVE MIC
+      <span class="mic-dot"></span> Live Mic
     </button>
     <button class="info-btn" onclick="openMethodModal()">Method &amp; Safety</button>
-    <div class="traffic-badge fallback" id="firebase-source-badge">Firebase: Checking...</div>
-    <div class="traffic-badge fallback" id="engine-source-badge">AI Engine: Checking...</div>
-    <div class="traffic-badge fallback" id="traffic-source-badge">Live Traffic: Fallback</div>
-    <div class="status-pill" id="status-pill"><span class="dot"></span> LISTENING</div>
+    <!-- State indicators kept in DOM but hidden so JS hooks (renderInfraBadges,
+         renderTrafficSourceBadge, renderDetections) don't need null guards. -->
+    <div class="traffic-badge fallback infra-state" id="firebase-source-badge"></div>
+    <div class="traffic-badge fallback infra-state" id="engine-source-badge"></div>
+    <div class="traffic-badge fallback infra-state" id="traffic-source-badge"></div>
+    <div class="status-pill infra-state" id="status-pill"><span class="dot"></span></div>
   </div>
 </div>
 
