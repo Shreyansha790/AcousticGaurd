@@ -1924,6 +1924,21 @@ function pickRouteForVenue(){
     .sort((a,b)=>a.dist-b.dist)[0].route;
 }
 
+function buildVenueMedicalCorridor(route, crisis){
+  const venue = getVenue();
+  const handoffNode = {
+    intersection_name: `${crisis.responderGate} Handoff`,
+    lat: venue.lat - 0.0018,
+    lng: venue.lng + 0.0022
+  };
+  const cityJoinNode = {
+    intersection_name: route.origin.name,
+    lat: route.origin.lat,
+    lng: route.origin.lng
+  };
+  return [handoffNode, cityJoinNode, ...route.nodes];
+}
+
 async function runCrisisScenario(type){
   if(isAnalyzing) return;
   isAnalyzing = true;
@@ -1950,7 +1965,8 @@ async function runCrisisScenario(type){
   document.getElementById('status-pill').innerHTML = '<span class="dot"></span> VENUE CRISIS';
 
   if(type === 'medical'){
-    await executePipeline(pickRouteForVenue(), {
+    const venueRoute = pickRouteForVenue();
+    await executePipeline(venueRoute, {
       confidence: activeCrisis.confidence,
       source:'venue_medical_crisis',
       severity: activeCrisis.severity,
@@ -1959,6 +1975,11 @@ async function runCrisisScenario(type){
       affectedZone: activeCrisis.affectedZone,
       responderGate: activeCrisis.responderGate,
       safeZone: activeCrisis.safeZone,
+      originId: `VENUE_${activeVenueKey.toUpperCase()}`,
+      originName: `${activeCrisis.venue} - ${activeCrisis.affectedZone}`,
+      originLat: getVenue().lat,
+      originLng: getVenue().lng,
+      corridorNodes: buildVenueMedicalCorridor(venueRoute, activeCrisis),
       resolveMs: 14000
     });
   } else {
@@ -2056,14 +2077,19 @@ async function runConflictReplay(){
 // ── FIREBASE PIPELINE ─────────────────────────────────────────
 async function executePipeline(forcedRoute=null, meta = {}){
   const r    = forcedRoute || ROUTES[Math.floor(Math.random()*ROUTES.length)];
+  const originId = meta.originId || r.origin.id;
+  const originName = meta.originName || r.origin.name;
+  const originLat = typeof meta.originLat === 'number' ? meta.originLat : r.origin.lat;
+  const originLng = typeof meta.originLng === 'number' ? meta.originLng : r.origin.lng;
+  const corridorNodes = Array.isArray(meta.corridorNodes) && meta.corridorNodes.length ? meta.corridorNodes : r.nodes;
   const conf = typeof meta.confidence === 'number'
     ? Number(meta.confidence.toFixed(2))
     : parseFloat((Math.random()*0.1+0.89).toFixed(2));
 
   const detRef = _push(_ref(_db,'detections'));
   await _set(detRef,{
-    intersection_id: r.origin.id, intersection_name: r.origin.name,
-    lat: r.origin.lat, lng: r.origin.lng,
+    intersection_id: originId, intersection_name: originName,
+    lat: originLat, lng: originLng,
     confidence: conf, status:'active',
     source: meta.source || 'standard',
     ambulance_id: meta.ambulanceId || null,
@@ -2084,9 +2110,9 @@ async function executePipeline(forcedRoute=null, meta = {}){
   const corrRef = _push(_ref(_db,'corridors'));
   await _set(corrRef,{
     triggered_by: detRef.key,
-    origin_intersection: r.origin.name,
-    origin_lat: r.origin.lat, origin_lng: r.origin.lng,
-    corridor_nodes: r.nodes,
+    origin_intersection: originName,
+    origin_lat: originLat, origin_lng: originLng,
+    corridor_nodes: corridorNodes,
     status:'active', created_at: new Date().toISOString(),
   });
 
