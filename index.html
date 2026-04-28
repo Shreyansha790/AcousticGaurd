@@ -327,6 +327,25 @@
   .loc-coords { font-family:var(--mono); font-size:10px; color:var(--text-main); line-height:1.9; }
   .loc-acc    { font-size:9px; color:var(--text-muted); margin-top:4px; }
   .loc-nearest{ font-size:10px; color:var(--neon-amber); margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.06); line-height:1.8; }
+
+  .theme-badge { font-size:9px; font-weight:700; color:var(--neon-cyan); border:1px solid rgba(0,240,255,0.25); background:rgba(0,240,255,0.08); padding:4px 8px; border-radius:999px; letter-spacing:0.7px; text-transform:uppercase; }
+  .proof-strip { margin-top:14px; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .proof-card { background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); border-radius:10px; padding:10px; }
+  .proof-title { font-size:9px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:5px; }
+  .proof-text { font-size:10px; line-height:1.6; color:var(--text-main); }
+
+  .info-btn { border:1px solid rgba(0,240,255,0.25); background:rgba(0,240,255,0.08); color:var(--neon-cyan); border-radius:8px; font-size:10px; font-weight:700; padding:7px 10px; cursor:pointer; letter-spacing:0.5px; }
+  .info-btn:hover { background:rgba(0,240,255,0.16); }
+
+  @media (max-width: 1100px){
+    html, body { overflow:auto; }
+    .layout-live { grid-template-columns:1fr; grid-template-rows:auto auto auto auto; }
+    .map-area { min-height:340px; }
+    .topbar { flex-wrap:wrap; height:auto; padding:10px 14px; gap:10px; }
+    .topbar-right { width:100%; justify-content:space-between; }
+    .nav-tabs { order:3; width:100%; justify-content:center; }
+    .proof-strip { grid-template-columns:1fr; }
+  }
 </style>
 </head>
 <body>
@@ -342,7 +361,7 @@
 import { initializeApp }                        from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
 import { getDatabase, ref, onValue, push, set } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
 
-const firebaseConfig = {
+const firebaseConfig = window.__ACOUSTICGUARD_FIREBASE_CONFIG || {
   apiKey:            "AIzaSyANNBZ3RUkvvggOnw85z4eo_FXCnAPemyg",
   authDomain:        "acousticguard.firebaseapp.com",
   databaseURL:       "https://acousticguard-default-rtdb.firebaseio.com",
@@ -352,11 +371,17 @@ const firebaseConfig = {
   appId:             "1:824703825141:web:3a623a6dd5f9ea918d41bc"
 };
 
-const app = initializeApp(firebaseConfig);
-const db  = getDatabase(app);
-
-// Expose Firebase helpers globally so the main script can use them
-window._fb = { db, ref, onValue, push, set };
+let db = null;
+try {
+  const app = initializeApp(firebaseConfig);
+  db  = getDatabase(app);
+  // Expose Firebase helpers globally so the main script can use them
+  window._fb = { db, ref, onValue, push, set };
+  window._fbMode = "live";
+} catch (e) {
+  console.error("Firebase init failed, switching to local demo mode:", e);
+  window._fbMode = "local";
+}
 
 // Wait for main script to be ready, then start listeners
 function startListeners() {
@@ -570,7 +595,59 @@ function switchLogTab(type){
 let _db, _ref, _onValue, _push, _set;
 
 window._startFirebase = function(db, ref, onValue, push, set){
-  _db = db; _ref = ref; _onValue = onValue; _push = push; _set = set;
+  if(!db){
+    // Local fallback mode: keep demo fully usable when Firebase/network is unavailable.
+    const store = { detections:{}, corridors:{}, heatmap:{} };
+    const listeners = { detections:[], corridors:[], heatmap:[] };
+    const mkSnap = (name)=>({ val: ()=>store[name] });
+    const emit = (name)=>listeners[name].forEach((cb)=>cb(mkSnap(name)));
+    let localCounter = 0;
+
+    _db = { local:true };
+    _ref = (_dbObj, path)=>path;
+    _onValue = (path, cb)=>{
+      const key = path.split('/')[0];
+      if(listeners[key]){
+        listeners[key].push(cb);
+        cb(mkSnap(key));
+      }
+    };
+    _push = (path)=>{
+      const key = `local_${Date.now()}_${(++localCounter)}`;
+      return { key, path };
+    };
+    _set = async (target, value)=>{
+      const path = typeof target === 'string' ? target : target.path || '';
+      const keyFromTarget = typeof target === 'object' ? target.key : null;
+      const parts = path.split('/').filter(Boolean);
+      const root = parts[0];
+      if(!root || !store[root]) return;
+      if(parts.length===1 && keyFromTarget){
+        store[root][keyFromTarget] = value;
+        emit(root);
+        return;
+      }
+      if(parts.length===3){
+        const [, id, field] = parts;
+        if(store[root][id]){
+          store[root][id][field] = value;
+          emit(root);
+        }
+      }
+    };
+
+    const modeBadge = document.getElementById('status-pill');
+    if(modeBadge){
+      modeBadge.className = 'status-pill conflict';
+      modeBadge.innerHTML = '<span class="dot"></span> LOCAL MODE';
+    }
+    const alertSub = document.getElementById('alert-sub');
+    if(alertSub){
+      alertSub.textContent = 'Running offline simulation mode. Data persists only for this session.';
+    }
+  } else {
+    _db = db; _ref = ref; _onValue = onValue; _push = push; _set = set;
+  }
 
   _onValue(_ref(_db,'detections'), snap=>{ detections=snap.val()||{}; renderDetections(); updateStats(); });
   _onValue(_ref(_db,'corridors'),  snap=>{ corridors=snap.val()||{};  renderActiveCorridor(); });
@@ -1593,6 +1670,8 @@ function generateReport(){
   document.getElementById('report-modal').classList.add('visible');
 };
 function closeReport(){ document.getElementById('report-modal').classList.remove('visible'); }
+function openMethodModal(){ document.getElementById('method-modal').classList.add('visible'); }
+function closeMethodModal(){ document.getElementById('method-modal').classList.remove('visible'); }
 
 // ── LIVE LOCATION ──────────────────────────────────────────────
 let locationMarker = null;
@@ -1739,6 +1818,7 @@ window._appReady = true;
   <div class="brand">
     <div class="brand-icon">⚡</div>
     <div class="brand-text">Acoustic<span>Guard</span>.ai</div>
+    <span class="theme-badge">Google SDG: Rapid Crisis Response</span>
   </div>
   <div class="nav-tabs">
     <div class="nav-tab active" id="tab-live"      onclick="switchTab('live')">Live Dashboard</div>
@@ -1753,7 +1833,23 @@ window._appReady = true;
     <button class="mic-btn" id="mic-btn" onclick="toggleMic()">
       <span class="mic-dot"></span> LIVE MIC
     </button>
+    <button class="info-btn" onclick="openMethodModal()">Method &amp; Safety</button>
     <div class="status-pill" id="status-pill"><span class="dot"></span> LISTENING</div>
+  </div>
+</div>
+
+<div class="proof-strip">
+  <div class="proof-card">
+    <div class="proof-title">Problem Fit</div>
+    <div class="proof-text">Emergency route clearing for Bengaluru congestion and hospital load balancing.</div>
+  </div>
+  <div class="proof-card">
+    <div class="proof-title">Real AI Evidence</div>
+    <div class="proof-text">Live mic inference with TensorFlow.js + YAMNet confidence trace.</div>
+  </div>
+  <div class="proof-card">
+    <div class="proof-title">City Scalability</div>
+    <div class="proof-text">Edge-node simulation and corridor sequencing designed for district-level rollout.</div>
   </div>
 </div>
 
@@ -1996,6 +2092,46 @@ window._appReady = true;
     <div class="report-footer">
       <button class="report-action report-primary"   onclick="closeReport()">✓ Acknowledge</button>
       <button class="report-action report-secondary" onclick="closeReport()">Export PDF</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="method-modal">
+  <div class="report-card">
+    <div class="report-header">
+      <div class="report-title">Methods, Safety, and Deployment Notes</div>
+      <button class="report-close" onclick="closeMethodModal()">âœ•</button>
+    </div>
+    <div class="report-meta">For hackathon review and technical due diligence</div>
+
+    <div class="report-section">
+      <div class="report-section-title">Model and Inference</div>
+      <div class="report-row"><span>Audio classifier</span><span class="report-val">TensorFlow.js + YAMNet</span></div>
+      <div class="report-row"><span>Inference mode</span><span class="report-val">Browser mic stream</span></div>
+      <div class="report-row"><span>Decision output</span><span class="report-val">Confidence + explainable trace</span></div>
+    </div>
+
+    <div class="report-section">
+      <div class="report-section-title">Security and Privacy</div>
+      <div class="report-row"><span>Secrets strategy</span><span class="report-val">Runtime config override supported</span></div>
+      <div class="report-row"><span>Fail-safe behavior</span><span class="report-val">Local mode when Firebase unavailable</span></div>
+      <div class="report-row"><span>Data handling</span><span class="report-val">Session telemetry; no raw audio persistence</span></div>
+    </div>
+
+    <div class="report-section">
+      <div class="report-section-title">Scalability and Citations</div>
+      <div class="report-row"><span>Architecture</span><span class="report-val">Edge nodes + corridor arbitration</span></div>
+      <div class="report-row"><span>Traffic premise</span><span class="report-val">Bengaluru congestion benchmark assumptions</span></div>
+      <div class="report-row"><span>Medical premise</span><span class="report-val">Faster emergency response survival linkage</span></div>
+    </div>
+
+    <div class="report-insight">
+      This prototype demonstrates end-to-end emergency orchestration: siren detection, conflict arbitration,
+      hospital-aware routing, and city impact analytics in one operational flow.
+    </div>
+
+    <div class="report-footer">
+      <button class="report-action report-primary" onclick="closeMethodModal()">Close</button>
     </div>
   </div>
 </div>
