@@ -44,7 +44,7 @@
       radial-gradient(circle at 90% 90%,  rgba(177,74,58,0.03), transparent 50%);
   }
   .glass { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 4px; box-shadow: var(--shadow-sm); }
-  ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-thumb { background: rgba(26,31,46,0.15); border-radius: 3px; } ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; } ::-webkit-scrollbar-thumb { background: rgba(26,31,46,0.18); border-radius: 4px; } ::-webkit-scrollbar-thumb:hover { background: rgba(26,31,46,0.35); } ::-webkit-scrollbar-track { background: transparent; }
 
   /* ── TOPBAR ── */
   .topbar { display:flex; align-items:center; justify-content:space-between; padding:0 32px; height:68px; border-bottom:1px solid var(--rule); background:rgba(250,247,242,0.94); backdrop-filter:saturate(140%) blur(10px); position:sticky; top:0; z-index:200; }
@@ -70,9 +70,11 @@
   .mic-btn.active .mic-dot { animation:pulse-dot 1s infinite; }
 
   /* ── LAYOUT ── */
-  .view-container { min-height:calc(100vh - 220px); height:auto; display:none; overflow:visible; }
+  .view-container { display:none; }
   .view-container.active { display:grid; }
-  .layout-live      { grid-template-columns:320px 1fr 340px; grid-template-rows:auto auto; gap:18px; padding:18px 22px 28px; align-items:stretch; }
+  .view-container.layout-live      { height:calc(100vh - 224px); overflow:hidden; }
+  .view-container.layout-analytics { height:auto; overflow:visible; }
+  .layout-live      { grid-template-columns:320px 1fr 340px; grid-template-rows:auto 1fr; gap:18px; padding:18px 22px 22px; align-items:stretch; }
   .layout-analytics { grid-template-columns:1fr; padding:36px 40px 48px; max-width:1280px; margin:0 auto; }
 
   /* ── ALERT BANNER ── */
@@ -96,10 +98,10 @@
   .alert-conf-label   { font-size:9px; color:var(--ink-500); letter-spacing:0.12em; text-transform:uppercase; text-align:center; margin-top:2px; }
 
   /* ── PANELS ── */
-  .panel { display:flex; flex-direction:column; overflow:visible; min-height:0; }
+  .panel { display:flex; flex-direction:column; overflow:hidden; min-height:0; }
   .panel-header { padding:16px 20px; border-bottom:1px solid var(--rule); display:flex; justify-content:space-between; align-items:center; flex-shrink:0; }
   .panel-title { font-size:11px; font-weight:600; color:var(--ink-700); letter-spacing:0.14em; text-transform:uppercase; }
-  .panel-body { padding:16px 20px 20px; overflow:visible; flex:1; display:flex; flex-direction:column; gap:14px; }
+  .panel-body { padding:16px 20px 20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:14px; }
   .sub-tabs { display:flex; gap:18px; flex-shrink:0; }
   .sub-tab { font-size:10px; font-weight:600; color:var(--ink-500); cursor:pointer; padding-bottom:4px; border-bottom:1.5px solid transparent; letter-spacing:0.12em; text-transform:uppercase; transition:color 0.15s; }
   .sub-tab:hover { color:var(--ink-900); }
@@ -121,7 +123,7 @@
   .conflict-card { background:#FFFFFF; border:1px solid var(--rule); border-left:3px solid var(--neon-amber); border-radius:3px; padding:14px; }
 
   /* ── MAP ── */
-  .map-area { position:sticky; top:80px; border-radius:4px; overflow:hidden; border:1px solid var(--rule); background:#FFFFFF; box-shadow:var(--shadow-sm); min-height:560px; height:calc(100vh - 260px); max-height:780px; align-self:start; }
+  .map-area { position:relative; border-radius:4px; overflow:hidden; border:1px solid var(--rule); background:#FFFFFF; box-shadow:var(--shadow-sm); min-width:0; }
   #leaflet-map { width:100%; height:100%; }
   .custom-marker { background:transparent; border:none; font-size:22px; display:flex; align-items:center; justify-content:center; }
 
@@ -1106,6 +1108,14 @@ window.onload = () => {
 
   // Pre-warm model so first mic start is faster and less likely to feel broken.
   setTimeout(()=>{ ensureYamnetReady().catch(()=>{}); }, 250);
+
+  // Leaflet computes tile sizes on init based on the map container's size.
+  // The container is inside a CSS grid with calc()-sized rows that settle
+  // a tick after onload, so the initial render can be partially blank.
+  // Force a recompute once the layout is stable, and again on resize.
+  setTimeout(()=>{ try { map.invalidateSize(true); } catch(e){} }, 120);
+  setTimeout(()=>{ try { map.invalidateSize(true); } catch(e){} }, 600);
+  window.addEventListener('resize', ()=>{ try { map.invalidateSize(); } catch(e){} });
 };
 
 // ── CLOCK ─────────────────────────────────────────────────────
@@ -1123,6 +1133,8 @@ function switchTab(v){
   document.getElementById('tab-'+v).classList.add('active');
   document.getElementById('view-'+v).classList.add('active');
   if(v==='analytics') updateAnalytics();
+  // Re-show the live view → map container has new dimensions, force recompute.
+  if(v==='live') setTimeout(()=>{ try { map && map.invalidateSize(true); } catch(e){} }, 50);
 };
 function switchLogTab(type){
   document.querySelectorAll('.sub-tab').forEach(t=>t.classList.remove('active'));
@@ -1205,7 +1217,10 @@ window._startFirebase = function(db, ref, onValue, push, set){
 function renderDetections(){
   const list = document.getElementById('list-alerts');
   const arr  = Object.entries(detections).sort((a,b)=>new Date(b[1].timestamp)-new Date(a[1].timestamp));
-  if(!arr.length) return;
+  if(!arr.length){
+    list.innerHTML = '<div style="color:var(--ink-500);font-size:11px;line-height:1.6;padding:12px 4px">No active alerts.<br><span style="opacity:0.7">Listening for venue events. Trigger a scenario above to see the live flow.</span></div>';
+    return;
+  }
 
   const liveArr = arr.filter(([,d])=>d.status==='active');
   const banner  = document.getElementById('alert-banner');
@@ -2839,7 +2854,7 @@ if('serviceWorker' in navigator){
         <div class="sub-tab"        id="subtab-conflicts" onclick="switchLogTab('conflicts')">Conflicts</div>
       </div>
       <div id="list-alerts"    style="display:flex;flex-direction:column;gap:8px">
-        <span style="color:var(--text-muted);font-size:11px">Connecting to Firebase...</span>
+        <div style="color:var(--ink-500);font-size:11px;line-height:1.6;padding:12px 4px">No active alerts.<br><span style="opacity:0.7">Listening for venue events.</span></div>
       </div>
       <div id="list-fp"        style="display:none;flex-direction:column;gap:8px">
         <span style="color:var(--text-muted);font-size:11px">Run "🚗 Traffic" to demonstrate AI filtering.</span>
@@ -2872,7 +2887,7 @@ if('serviceWorker' in navigator){
   </div>
 
   <!-- RIGHT: AI PANEL -->
-  <div class="panel glass" style="background:rgba(11,17,32,0.65)">
+  <div class="panel glass">
     <div class="panel-header"><span class="panel-title">Edge AI Diagnostics</span></div>
     <div class="panel-body">
 
