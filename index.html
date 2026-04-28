@@ -1755,11 +1755,11 @@ async function renderActiveCorridor(){
 
   const c     = arr[0];
   const nodes = Array.isArray(c.corridor_nodes) ? c.corridor_nodes : Object.values(c.corridor_nodes||{});
+  const triggerDetection = detections[c.triggered_by] || {};
+  const isVenueMedical = triggerDetection.source === 'venue_medical_crisis';
 
-  // Use live user location as routing origin if available, else use siren origin
-  const routeOriginLat = (locationActive && locationMarker) ? locationMarker.getLatLng().lat : c.origin_lat;
-  const routeOriginLng = (locationActive && locationMarker) ? locationMarker.getLatLng().lng : c.origin_lng;
-  const bestHosp = renderHospitalPanel([routeOriginLat, routeOriginLng]);
+  // For emergency routing, hospital selection must be based on incident origin (venue), not live user location.
+  const bestHosp = renderHospitalPanel([c.origin_lat, c.origin_lng]);
 
   // Build corridor label strip
   let mins = 0;
@@ -1769,7 +1769,10 @@ async function renderActiveCorridor(){
     ${bestHosp?`<span style="color:var(--text-muted)">→</span><div class="c-step" style="border-color:rgba(0,255,136,0.35)"><span class="step-name" style="color:var(--neon-green)">🏥 ${bestHosp.name}</span><span class="step-eta" style="color:var(--neon-green)">${bestHosp.beds} beds ready</span></div>`:''}
   `;
 
-  const routePoints = [[c.origin_lat,c.origin_lng], ...nodes.map(n=>[n.lat,n.lng])];
+  // Medical crisis route should be a clean venue -> hospital line with real road geometry.
+  const routePoints = isVenueMedical
+    ? [[c.origin_lat, c.origin_lng]]
+    : [[c.origin_lat,c.origin_lng], ...nodes.map(n=>[n.lat,n.lng])];
   if(bestHosp) routePoints.push([bestHosp.lat,bestHosp.lng]);
   let path = routePoints;
   const exactRoadPath = await fetchTomTomRouteGeometry(routePoints);
@@ -1783,13 +1786,12 @@ async function renderActiveCorridor(){
   // [ENHANCEMENT #1] Radar pulse at origin
   triggerRadarPulse(c.origin_lat, c.origin_lng);
 
-  // [ENHANCEMENT #3] Signal light markers at waypoints
-  addSignalLightMarkers(path);
+  // Keep venue-medical demo visually clean: no extra checkpoint signal icons.
+  if(!isVenueMedical) addSignalLightMarkers(path);
 
   // [ENHANCEMENT #5] Spawn particles
   spawnParticles();
 
-  const wIcon = L.divIcon({html:'⚠️',className:'custom-marker',iconSize:[26,26]});
   const hIcon = L.divIcon({html:'🏥',className:'custom-marker',iconSize:[32,32]});
 
   // [ENHANCEMENT #4] Glowing ambulance marker
@@ -1801,11 +1803,9 @@ async function renderActiveCorridor(){
     </div>`;
   const aIcon = L.divIcon({html: ambHtml, className:'', iconSize:[40,40], iconAnchor:[20,20]});
 
-  path.forEach((coord,i)=>{
-    if(i===0) return; // origin gets the ambulance marker, not a waypoint
-    const icon = i===path.length-1 ? hIcon : wIcon;
-    mapLayers.push(L.marker(coord,{icon}).addTo(map));
-  });
+  if(bestHosp){
+    mapLayers.push(L.marker([bestHosp.lat, bestHosp.lng],{icon:hIcon}).addTo(map));
+  }
 
   // Glowing polyline with dashed upcoming
   const originTraffic = getTrafficMultiplierForNode(c.origin_intersection || 'Bengaluru');
@@ -1973,19 +1973,21 @@ function pickRouteForVenue(){
 }
 
 function buildVenueMedicalCorridor(route, crisis){
-  const venue = getVenue();
-  const handoffNode = {
-    intersection_name: `${crisis.responderGate} Handoff`,
-    lat: venue.lat - 0.0018,
-    lng: venue.lng + 0.0022
-  };
-  return [handoffNode];
+  return [];
+}
+
+async function resolveActiveIncidents(){
+  const activeDetections = Object.entries(detections).filter(([,d])=>d.status==='active').map(([id])=>id);
+  const activeCorridors = Object.entries(corridors).filter(([,c])=>c.status==='active').map(([id])=>id);
+  await Promise.all(activeDetections.map(id=>_set(_ref(_db,`detections/${id}/status`),'resolved')));
+  await Promise.all(activeCorridors.map(id=>_set(_ref(_db,`corridors/${id}/status`),'resolved')));
 }
 
 async function runCrisisScenario(type){
   if(isAnalyzing) return;
   isAnalyzing = true;
   setBtns(true);
+  await resolveActiveIncidents();
 
   activeCrisis = buildCrisisState(type);
   const preset = CRISIS_PRESETS[type] || CRISIS_PRESETS.medical;
