@@ -72,10 +72,10 @@
   .mic-btn.active .mic-dot { animation:pulse-dot 1s infinite; }
 
   /* ── LAYOUT ── */
-  .view-container { height:calc(100vh - 176px); display:none; overflow:hidden; }
+  .view-container { height:calc(100vh - 220px); display:none; overflow:hidden; }
   .view-container.active { display:grid; }
-  .layout-live      { grid-template-columns:300px 1fr 320px; grid-template-rows:auto 1fr; gap:14px; padding:14px; }
-  .layout-analytics { grid-template-columns:1fr; padding:28px; overflow-y:auto; }
+  .layout-live      { grid-template-columns:320px 1fr 340px; grid-template-rows:auto 1fr; gap:18px; padding:18px 22px 22px; }
+  .layout-analytics { grid-template-columns:1fr; padding:36px 40px 48px; overflow-y:auto; max-width:1280px; margin:0 auto; }
 
   /* ── ALERT BANNER ── */
   .alert-banner { grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; padding:14px 22px; border-radius:4px; transition:background 0.3s ease, border-color 0.3s ease; background:#FFFFFF; border:1px solid var(--rule); border-left:3px solid var(--neon-green); box-shadow:var(--shadow-sm); }
@@ -99,9 +99,9 @@
 
   /* ── PANELS ── */
   .panel { display:flex; flex-direction:column; overflow:hidden; min-height:0; }
-  .panel-header { padding:14px 18px; border-bottom:1px solid var(--rule); display:flex; justify-content:space-between; align-items:center; flex-shrink:0; }
-  .panel-title { font-size:10px; font-weight:600; color:var(--ink-500); letter-spacing:0.14em; text-transform:uppercase; }
-  .panel-body { padding:14px 18px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px; }
+  .panel-header { padding:16px 20px; border-bottom:1px solid var(--rule); display:flex; justify-content:space-between; align-items:center; flex-shrink:0; }
+  .panel-title { font-size:11px; font-weight:600; color:var(--ink-700); letter-spacing:0.14em; text-transform:uppercase; }
+  .panel-body { padding:16px 20px 20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:14px; }
   .sub-tabs { display:flex; gap:18px; flex-shrink:0; }
   .sub-tab { font-size:10px; font-weight:600; color:var(--ink-500); cursor:pointer; padding-bottom:4px; border-bottom:1.5px solid transparent; letter-spacing:0.12em; text-transform:uppercase; transition:color 0.15s; }
   .sub-tab:hover { color:var(--ink-900); }
@@ -319,17 +319,17 @@
   .loc-nearest{ font-size:10px; color:var(--ink-700); margin-top:8px; padding-top:8px; border-top:1px solid var(--rule-soft); line-height:1.65; }
 
   .theme-badge { font-family:var(--serif); font-style:italic; font-size:11px; font-weight:500; color:var(--ink-700); border:none; background:transparent; padding:0 0 0 12px; border-left:1px solid var(--rule); margin-left:4px; letter-spacing:0; text-transform:none; }
-  .proof-strip { margin:18px 22px 0; display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
-  .proof-card { background:#FFFFFF; border:1px solid var(--rule); border-radius:3px; padding:14px 16px; }
-  .proof-title { font-size:9px; font-weight:600; color:var(--ink-500); text-transform:uppercase; letter-spacing:0.14em; margin-bottom:8px; }
-  .proof-text { font-size:11px; line-height:1.6; color:var(--ink-700); }
+  .proof-strip { margin:20px 22px 0; display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+  .proof-card { background:#FFFFFF; border:1px solid var(--rule); border-radius:3px; padding:16px 18px; box-shadow:var(--shadow-sm); }
+  .proof-title { font-size:10px; font-weight:600; color:var(--ink-500); text-transform:uppercase; letter-spacing:0.14em; margin-bottom:10px; }
+  .proof-text { font-size:12px; line-height:1.6; color:var(--ink-700); }
 
   .info-btn { border:1px solid var(--rule); background:transparent; color:var(--ink-700); border-radius:2px; font-size:10px; font-weight:600; padding:6px 12px; cursor:pointer; letter-spacing:0.1em; text-transform:uppercase; transition:all 0.15s; }
   .info-btn:hover { border-color:var(--ink-900); color:var(--ink-900); }
   .traffic-badge { border:1px solid var(--rule); background:transparent; color:var(--ink-700); border-radius:999px; font-size:9px; font-weight:600; padding:4px 10px; letter-spacing:0.1em; text-transform:uppercase; white-space:nowrap; }
   .traffic-badge:not(.fallback) { color:var(--neon-green); border-color:rgba(107,142,91,0.35); }
   .traffic-badge.fallback { border-color:rgba(184,148,59,0.35); color:var(--neon-amber); }
-  .venue-bar { display:flex; align-items:center; justify-content:space-between; gap:14px; margin:14px 22px 0; padding:14px 18px; border:1px solid var(--rule); background:#FFFFFF; border-radius:3px; }
+  .venue-bar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:16px 22px 0; padding:14px 20px; border:1px solid var(--rule); background:#FFFFFF; border-radius:3px; box-shadow:var(--shadow-sm); }
   .venue-left { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
   .venue-label { font-size:9px; font-weight:600; color:var(--ink-500); letter-spacing:0.14em; text-transform:uppercase; }
   #venue-name.venue-label { font-family:var(--serif); font-style:italic; font-size:14px; font-weight:500; color:var(--ink-900); letter-spacing:-0.005em; text-transform:none; }
@@ -2145,15 +2145,39 @@ function setBtns(disabled){
 
 async function runAudioSimulation(type){
   if(isAnalyzing) return;
-  if(!micActive){
-    setAiStatus('ENABLE LIVE MIC FIRST');
-    return;
-  }
 
   isAnalyzing = true;
   setBtns(true);
-  setAiStatus('ANALYZING...');
 
+  // Two paths:
+  //   - Mic active  -> classify the live captured audio (real demo)
+  //   - Mic off     -> simulated decision trace + pipeline trigger so the
+  //                    Siren / Traffic buttons remain usable for judges
+  //                    without granting microphone access.
+  if(!micActive){
+    const isSiren = type === 'siren';
+    const conf = isSiren ? 92 + Math.floor(Math.random()*5) : 58 + Math.floor(Math.random()*15);
+    const noiseLabel = isSiren ? null : (type === 'noise' ? 'Traffic Noise' : 'Ambient Noise');
+    setAiStatus(isSiren ? `SIMULATED SIREN - ${conf}%` : `SIMULATED NOISE - ${conf}%`);
+    showDecisionTree(isSiren, conf, noiseLabel);
+    if(isSiren){
+      await wait(900);
+      await executePipeline();
+    } else {
+      falsePositives.unshift({type: noiseLabel || 'Traffic Noise', conf, time:new Date().toLocaleTimeString()});
+      document.getElementById('list-fp').innerHTML = falsePositives.map(fp=>`
+        <div class="fp-card">
+          <div class="det-top"><span class="det-name">${fp.type}</span><span class="fp-status">FILTERED</span></div>
+          <div class="det-meta"><span>${fp.conf}% confidence</span><span>${fp.time}</span></div>
+        </div>`).join('');
+      updateStats();
+    }
+    isAnalyzing = false;
+    setBtns(false);
+    return;
+  }
+
+  setAiStatus('ANALYZING...');
   let result = null;
   try{
     result = await classifyByActiveEngine();
@@ -2519,7 +2543,10 @@ function exportReportPdf(){
   const card = document.querySelector('#report-modal .report-card');
   if(!card) return;
 
-  const win = window.open('', '_blank', 'noopener,noreferrer,width=980,height=760');
+  // NOTE: don't use noopener/noreferrer here — they cause window.open to
+  // return null in modern Chromium, which breaks document.write below and
+  // makes the popup render blank.
+  const win = window.open('', '_blank', 'width=980,height=760');
   if(!win){
     setAiStatus('POPUP BLOCKED - ALLOW EXPORT WINDOW');
     return;
